@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:www.figma.com)",
+      "Bash(node --input-type=module --experimental-vm-modules)",
+      "Bash(npx --yes acorn --ecma2020 --module src/App.jsx)",
+      "Bash(npx acorn:*)",
+      "Bash(npx vite:*)"
+    ]
+  }
+}

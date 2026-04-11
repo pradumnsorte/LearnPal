@@ -1,0 +1,59 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Ubuntu:ital,wght@0,700&display=swap');
+
+/* ── Design tokens ──────────────────────────────────────────────────────────── */
+
+:root {
+  /* Families */
+  --ff-brand: 'Ubuntu', sans-serif;  /* logo only */
+  --ff-ui:    'Inter',  sans-serif;  /* all UI text */
+
+  /* Sticky layer offsets — compact player height per breakpoint */
+  --compact-player-h: calc((100vw - 520px) * 9 / 16 * 0.58);
+  --feature-row-h: 100px;   /* approx card height in 2-col layout */
+
+  /* Type scale — 8 steps, base 14 px */
+  --fs-2xs:   11px;   /* timestamps, meta labels          */
+  --fs-xs:    12px;   /* tips, chips, captions            */
+  --fs-sm:    13px;   /* buttons, secondary labels        */
+  --fs-base:  14px;   /* body copy, messages, inputs      */
+  --fs-md:    16px;   /* card headings, greeting bubbles  */
+  --fs-lg:    18px;   /* section headings, quiz questions */
+  --fs-xl:    20px;   /* page / video title               */
+  --fs-2xl:   24px;   /* panel headers (Ask Pal)          */
+  --fs-brand: 26px;   /* brand logo                       */
+
+  /* Weights */
+  --fw-regular:  400;
+  --fw-medium:   500;
+  --fw-semibold: 600;
+  --fw-bold:     700;
+
+  /* Line heights */
+  --lh-tight:  1.2;
+  --lh-snug:   1.4;
+  --lh-normal: 1.5;
+}
+
+/* ── Reset ──────────────────────────────────────────────────────────────────── */
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  background: #edf2fa;
+  font-family: var(--ff-ui);
+  font-size: var(--fs-base);
+  font-weight: var(--fw-regular);
+  height: 100vh;
+  line-height: var(--lh-normal);
+  margin: 0;
+  min-width: 320px;
+}
+
+#root {
+  height: 100vh;
+  margin: 0 auto;
+  max-width: 1512px;
+  width: 100%;
+}

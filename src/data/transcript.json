@@ -1,0 +1,1016 @@
+[
+  {
+    "id": "t1",
+    "time": "0:00",
+    "seconds": 0.7,
+    "text": "Neural networks..."
+  },
+  {
+    "id": "t2",
+    "time": "0:04",
+    "seconds": 4.1,
+    "text": "seem so complicated, but they're not!"
+  },
+  {
+    "id": "t3",
+    "time": "0:09",
+    "seconds": 9.5,
+    "text": "StatQuest!"
+  },
+  {
+    "id": "t4",
+    "time": "0:11",
+    "seconds": 11.9,
+    "text": "Hello!"
+  },
+  {
+    "id": "t5",
+    "time": "0:13",
+    "seconds": 13.0,
+    "text": "I'm Josh Starmer and welcome to StatQuest!"
+  },
+  {
+    "id": "t6",
+    "time": "0:15",
+    "seconds": 15.7,
+    "text": "Today, we're going to talk about neural networks, part one: inside the black box!"
+  },
+  {
+    "id": "t7",
+    "time": "0:22",
+    "seconds": 22.1,
+    "text": "Neural networks, one of the most popular algorithms in machine learning, cover a broad range of concepts and techniques."
+  },
+  {
+    "id": "t8",
+    "time": "0:31",
+    "seconds": 31.3,
+    "text": "however, people call them a black box because it can be hard to understand what they're doing."
+  },
+  {
+    "id": "t9",
+    "time": "0:38",
+    "seconds": 38.4,
+    "text": "the goal of this series is to take a peek into the black box by breaking down each"
+  },
+  {
+    "id": "t10",
+    "time": "0:44",
+    "seconds": 44.02,
+    "text": "concept and technique into its components and walking through how they fit together, step by step."
+  },
+  {
+    "id": "t11",
+    "time": "0:51",
+    "seconds": 51.3,
+    "text": "in this first part, we will learn about what neural networks do, and how they do it."
+  },
+  {
+    "id": "t12",
+    "time": "0:57",
+    "seconds": 57.6,
+    "text": "in part two, we'll talk about how neural networks are fit to data with backpropagation."
+  },
+  {
+    "id": "t13",
+    "time": "1:04",
+    "seconds": 64.5,
+    "text": "then, we will talk about variations on the simple neural network presented in this part, including deep learning."
+  },
+  {
+    "id": "t14",
+    "time": "1:12",
+    "seconds": 72.7,
+    "text": "note: crazy awesome news!"
+  },
+  {
+    "id": "t15",
+    "time": "1:16",
+    "seconds": 76.8,
+    "text": "i have a new way to think about neural networks that will help beginners and seasoned"
+  },
+  {
+    "id": "t16",
+    "time": "1:21",
+    "seconds": 82.0,
+    "text": "experts alike gain a deep insight into what neural networks do."
+  },
+  {
+    "id": "t17",
+    "time": "1:27",
+    "seconds": 87.3,
+    "text": "for example, most tutorials use cool looking, but hard to understand graphs, and fancy"
+  },
+  {
+    "id": "t18",
+    "time": "1:34",
+    "seconds": 94.26,
+    "text": "mathematical notation to represent neural networks."
+  },
+  {
+    "id": "t19",
+    "time": "1:39",
+    "seconds": 99.6,
+    "text": "in contrast, i'm going to label every little thing on the neural network to make it easy to keep track of the details."
+  },
+  {
+    "id": "t20",
+    "time": "1:48",
+    "seconds": 108.4,
+    "text": "and the math will be as simple as possible, while still being true to the algorithm."
+  },
+  {
+    "id": "t21",
+    "time": "1:54",
+    "seconds": 114.8,
+    "text": "these differences will help you develop a deep understanding of what neural networks actually do."
+  },
+  {
+    "id": "t22",
+    "time": "2:02",
+    "seconds": 122.7,
+    "text": "so, with that said, let's imagine we tested a drug that was designed to treat an illness"
+  },
+  {
+    "id": "t23",
+    "time": "2:09",
+    "seconds": 129.84,
+    "text": "and we gave the drug to three different groups of people, with three different dosages: low, medium, and high."
+  },
+  {
+    "id": "t24",
+    "time": "2:20",
+    "seconds": 140.0,
+    "text": "the low dosages were not effective so we set them to zero on this graph. in contrast,"
+  },
+  {
+    "id": "t25",
+    "time": "2:27",
+    "seconds": 147.27,
+    "text": "the medium dosages were effective so we set them to one."
+  },
+  {
+    "id": "t26",
+    "time": "2:32",
+    "seconds": 152.7,
+    "text": "and the high dosages were not effective, so those are set to zero."
+  },
+  {
+    "id": "t27",
+    "time": "2:38",
+    "seconds": 158.4,
+    "text": "now that we have this data, we would like to use it to predict whether or not a future dosage will be effective."
+  },
+  {
+    "id": "t28",
+    "time": "2:46",
+    "seconds": 166.2,
+    "text": "however we can't just fit a straight line to the data to make predictions, because"
+  },
+  {
+    "id": "t29",
+    "time": "2:51",
+    "seconds": 171.73,
+    "text": "no matter how we rotate the straight line, it can only accurately predict two of the three dosages."
+  },
+  {
+    "id": "t30",
+    "time": "2:59",
+    "seconds": 179.9,
+    "text": "the good news is that a neural network can fit a squiggle to the data."
+  },
+  {
+    "id": "t31",
+    "time": "3:05",
+    "seconds": 185.4,
+    "text": "the green squiggle is close to zero for low dosages, close to one for medium dosages,"
+  },
+  {
+    "id": "t32",
+    "time": "3:12",
+    "seconds": 192.32,
+    "text": "and close to zero for high dosages. and even if we have a really complicated dataset"
+  },
+  {
+    "id": "t33",
+    "time": "3:20",
+    "seconds": 200.11,
+    "text": "like this, a neural network can fit a squiggle to it."
+  },
+  {
+    "id": "t34",
+    "time": "3:26",
+    "seconds": 206.0,
+    "text": "in this StatQuest we're going to use this super simple dataset and show how this neural network creates this green squiggle."
+  },
+  {
+    "id": "t35",
+    "time": "3:36",
+    "seconds": 216.8,
+    "text": "but first, let's just talk about what a neural network is."
+  },
+  {
+    "id": "t36",
+    "time": "3:42",
+    "seconds": 222.0,
+    "text": "a neural network consists of nodes and connections between the nodes."
+  },
+  {
+    "id": "t37",
+    "time": "3:49",
+    "seconds": 229.1,
+    "text": "note: the numbers along each connection represent parameter values that were estimated"
+  },
+  {
+    "id": "t38",
+    "time": "3:54",
+    "seconds": 234.64,
+    "text": "when this neural network was fit to the data."
+  },
+  {
+    "id": "t39",
+    "time": "3:58",
+    "seconds": 238.4,
+    "text": "for now, just know that these parameter estimates are analogous to the slope and intercept"
+  },
+  {
+    "id": "t40",
+    "time": "4:04",
+    "seconds": 244.25,
+    "text": "values that we solve for when we fit a straight line to data."
+  },
+  {
+    "id": "t41",
+    "time": "4:09",
+    "seconds": 249.7,
+    "text": "likewise, a neural network starts out with unknown parameter values that are estimated"
+  },
+  {
+    "id": "t42",
+    "time": "4:15",
+    "seconds": 255.7,
+    "text": "when we fit the neural network to a dataset using a method called backpropagation."
+  },
+  {
+    "id": "t43",
+    "time": "4:21",
+    "seconds": 261.1,
+    "text": "and we will talk about how backpropagation estimates these parameters in part 2 in this series."
+  },
+  {
+    "id": "t44",
+    "time": "4:29",
+    "seconds": 269.5,
+    "text": "but, for now, just assume that we've already fit this neural network to this specific"
+  },
+  {
+    "id": "t45",
+    "time": "4:35",
+    "seconds": 275.54,
+    "text": "dataset, and that means we have already estimated these parameters."
+  },
+  {
+    "id": "t46",
+    "time": "4:41",
+    "seconds": 281.8,
+    "text": "also, you may have noticed that some of the nodes have curved lines inside of them."
+  },
+  {
+    "id": "t47",
+    "time": "4:48",
+    "seconds": 288.4,
+    "text": "these bent or curved lines are the building blocks for fitting a squiggle to data."
+  },
+  {
+    "id": "t48",
+    "time": "4:55",
+    "seconds": 295.4,
+    "text": "the goal of this StatQuest is to show you how these identical curves can be reshaped"
+  },
+  {
+    "id": "t49",
+    "time": "5:01",
+    "seconds": 301.78,
+    "text": "by the parameter values and then added together to get a green squiggle that fits the data."
+  },
+  {
+    "id": "t50",
+    "time": "5:09",
+    "seconds": 309.7,
+    "text": "note: there are many common bent or curved lines that we can choose for a neural network."
+  },
+  {
+    "id": "t51",
+    "time": "5:16",
+    "seconds": 316.7,
+    "text": "this specific curved line is called soft plus, which sounds like a brand of toilet paper."
+  },
+  {
+    "id": "t52",
+    "time": "5:23",
+    "seconds": 323.8,
+    "text": "alternatively, we could use this bent line, called ReLU, which is short for rectified linear unit, and sounds like a robot."
+  },
+  {
+    "id": "t53",
+    "time": "5:33",
+    "seconds": 333.4,
+    "text": "or, we could use a sigmoid shape, or any other bent or curved line."
+  },
+  {
+    "id": "t54",
+    "time": "5:39",
+    "seconds": 339.0,
+    "text": "oh no!"
+  },
+  {
+    "id": "t55",
+    "time": "5:40",
+    "seconds": 340.1,
+    "text": "it's the dreaded terminology alert!"
+  },
+  {
+    "id": "t56",
+    "time": "5:43",
+    "seconds": 343.3,
+    "text": "the curved or bent lines are called activation functions."
+  },
+  {
+    "id": "t57",
+    "time": "5:48",
+    "seconds": 348.6,
+    "text": "when you build a neural network you have to decide which activation function, or functions, you want to use."
+  },
+  {
+    "id": "t58",
+    "time": "5:57",
+    "seconds": 357.1,
+    "text": "when most people teach neural networks they use the sigmoid activation function."
+  },
+  {
+    "id": "t59",
+    "time": "6:03",
+    "seconds": 363.2,
+    "text": "however, in practice, it is much more common to use the ReLU activation function, or the soft plus activation function."
+  },
+  {
+    "id": "t60",
+    "time": "6:13",
+    "seconds": 373.2,
+    "text": "so we'll use the soft plus activation function in this StatQuest."
+  },
+  {
+    "id": "t61",
+    "time": "6:18",
+    "seconds": 378.8,
+    "text": "anyway, we'll talk more about how you choose activation functions later in this series."
+  },
+  {
+    "id": "t62",
+    "time": "6:25",
+    "seconds": 385.8,
+    "text": "note: this specific neural network is about as simple as they get."
+  },
+  {
+    "id": "t63",
+    "time": "6:31",
+    "seconds": 391.2,
+    "text": "it only has one input node, where we plug in the dosage, only one output node to tell"
+  },
+  {
+    "id": "t64",
+    "time": "6:37",
+    "seconds": 397.53,
+    "text": "us the predicted effectiveness, and only two nodes between the input and output nodes."
+  },
+  {
+    "id": "t65",
+    "time": "6:44",
+    "seconds": 404.9,
+    "text": "however, in practice, neural networks are usually much fancier and have more than"
+  },
+  {
+    "id": "t66",
+    "time": "6:51",
+    "seconds": 411.81,
+    "text": "one input node, more than one output node, different layers of nodes between the"
+  },
+  {
+    "id": "t67",
+    "time": "6:57",
+    "seconds": 417.99,
+    "text": "input and output nodes, and a spider web of connections between each layer of nodes."
+  },
+  {
+    "id": "t68",
+    "time": "7:06",
+    "seconds": 426.0,
+    "text": "oh no!"
+  },
+  {
+    "id": "t69",
+    "time": "7:07",
+    "seconds": 427.3,
+    "text": "it's another terminology alert!"
+  },
+  {
+    "id": "t70",
+    "time": "7:09",
+    "seconds": 429.8,
+    "text": "these layers of nodes between the input and output nodes are called hidden layers."
+  },
+  {
+    "id": "t71",
+    "time": "7:16",
+    "seconds": 436.3,
+    "text": "when you build a neural network one of the first things you do is decide how many"
+  },
+  {
+    "id": "t72",
+    "time": "7:21",
+    "seconds": 441.21,
+    "text": "hidden layers you want and how many nodes go into each hidden layer."
+  },
+  {
+    "id": "t73",
+    "time": "7:26",
+    "seconds": 446.5,
+    "text": "although there are rules of thumb for making decisions about the hidden layers, you"
+  },
+  {
+    "id": "t74",
+    "time": "7:31",
+    "seconds": 451.95,
+    "text": "essentially make a guess and see how well the neural network performs, adding more layers and nodes if needed."
+  },
+  {
+    "id": "t75",
+    "time": "7:40",
+    "seconds": 460.4,
+    "text": "now, even though this neural network looks fancy, it is still made from the same parts"
+  },
+  {
+    "id": "t76",
+    "time": "7:47",
+    "seconds": 467.22,
+    "text": "used in this simple neural network, which has only one hidden layer with two nodes."
+  },
+  {
+    "id": "t77",
+    "time": "7:55",
+    "seconds": 475.0,
+    "text": "so let's learn how this neural network creates new shapes from the curved or bent"
+  },
+  {
+    "id": "t78",
+    "time": "8:00",
+    "seconds": 480.68,
+    "text": "lines in the hidden layer, and then adds them together to get a green squiggle that fits the data."
+  },
+  {
+    "id": "t79",
+    "time": "8:08",
+    "seconds": 488.5,
+    "text": "note: to keep the math simple, let's assume dosages go from zero, for low, to one, for high."
+  },
+  {
+    "id": "t80",
+    "time": "8:18",
+    "seconds": 498.0,
+    "text": "the first thing we are going to do is plug the lowest dosage, zero, into the neural network."
+  },
+  {
+    "id": "t81",
+    "time": "8:25",
+    "seconds": 505.6,
+    "text": "now, to get from the input node to the top node in the hidden layer, this connection"
+  },
+  {
+    "id": "t82",
+    "time": "8:32",
+    "seconds": 512.36,
+    "text": "multiplies the dosage by negative 34.4 and then adds 2.14, and the result is an x-axis coordinate for the activation function."
+  },
+  {
+    "id": "t83",
+    "time": "8:47",
+    "seconds": 527.4,
+    "text": "for example, the lowest dosage 0 is multiplied by negative 34.4, and then we add 2.14,"
+  },
+  {
+    "id": "t84",
+    "time": "8:57",
+    "seconds": 537.98,
+    "text": "to get 2.14 as the x-axis coordinate for the activation function."
+  },
+  {
+    "id": "t85",
+    "time": "9:06",
+    "seconds": 546.3,
+    "text": "to get the corresponding y-axis value we plug 2.14 into the activation function, which in this case is the soft plus function."
+  },
+  {
+    "id": "t86",
+    "time": "9:18",
+    "seconds": 558.0,
+    "text": "note: if we had chosen the sigmoid curve for the activation function then we would"
+  },
+  {
+    "id": "t87",
+    "time": "9:23",
+    "seconds": 563.9,
+    "text": "plug 2.14 into the equation for the sigmoid curve."
+  },
+  {
+    "id": "t88",
+    "time": "9:29",
+    "seconds": 569.1,
+    "text": "and if we had chosen the ReLU bent line for the activation function, then we would plug 2.14 into the ReLU equation."
+  },
+  {
+    "id": "t89",
+    "time": "9:39",
+    "seconds": 579.0,
+    "text": "but, since we are using soft plus for the activation function, we plug 2.14 into the soft plus equation."
+  },
+  {
+    "id": "t90",
+    "time": "9:48",
+    "seconds": 588.3,
+    "text": "and the log of one plus e raised to the 2.14 power is 2.25."
+  },
+  {
+    "id": "t91",
+    "time": "9:57",
+    "seconds": 597.5,
+    "text": "note: in statistics, machine learning, and most programming languages, the log function"
+  },
+  {
+    "id": "t92",
+    "time": "10:04",
+    "seconds": 604.72,
+    "text": "implies the natural log, or the log base e. anyway, the y-axis coordinate for the"
+  },
+  {
+    "id": "t93",
+    "time": "10:11",
+    "seconds": 611.84,
+    "text": "activation function is 2.25, so let's extend this y-axis up a little bit and put"
+  },
+  {
+    "id": "t94",
+    "time": "10:19",
+    "seconds": 619.86,
+    "text": "a blue dot at 2.25 for when dosage equals zero."
+  },
+  {
+    "id": "t95",
+    "time": "10:26",
+    "seconds": 626.5,
+    "text": "now, if we increase the dosage a little bit and plug 0.1 into the input, the x-axis"
+  },
+  {
+    "id": "t96",
+    "time": "10:34",
+    "seconds": 634.14,
+    "text": "coordinate for the activation function is negative 1.3, and the corresponding y-axis"
+  },
+  {
+    "id": "t97",
+    "time": "10:41",
+    "seconds": 641.23,
+    "text": "value is 0.24. so, let's put a blue dot at 0.24 for when dosage equals 0.1. and,"
+  },
+  {
+    "id": "t98",
+    "time": "10:52",
+    "seconds": 652.72,
+    "text": "if we continue to increase the dosage values all the way to 1, the maximum dosage, we get this blue curve."
+  },
+  {
+    "id": "t99",
+    "time": "11:02",
+    "seconds": 662.6,
+    "text": "note: before we move on I want to point out that the full range of dosage values,"
+  },
+  {
+    "id": "t100",
+    "time": "11:08",
+    "seconds": 668.48,
+    "text": "from 0 to 1, corresponds to this relatively narrow range of values from the activation function."
+  },
+  {
+    "id": "t101",
+    "time": "11:16",
+    "seconds": 676.7,
+    "text": "in other words, when we plug dosage values, from 0 to 1, into the neural network,"
+  },
+  {
+    "id": "t102",
+    "time": "11:23",
+    "seconds": 683.66,
+    "text": "and then multiply them by negative 34.4 and add 2.14, we only get x-axis coordinates that are within the red box."
+  },
+  {
+    "id": "t103",
+    "time": "11:35",
+    "seconds": 695.7,
+    "text": "and thus, only the corresponding y-axis values in the red box are used to make this new blue curve."
+  },
+  {
+    "id": "t104",
+    "time": "11:44",
+    "seconds": 704.1,
+    "text": "bam!"
+  },
+  {
+    "id": "t105",
+    "time": "11:45",
+    "seconds": 705.9,
+    "text": "now we scale the y-axis values for the blue curve by negative 1.3. for example, when"
+  },
+  {
+    "id": "t106",
+    "time": "11:53",
+    "seconds": 713.75,
+    "text": "dosage equals zero the current y-axis coordinate for the blue curve is 2.25, so we"
+  },
+  {
+    "id": "t107",
+    "time": "12:01",
+    "seconds": 721.53,
+    "text": "multiply 2.25 by negative 1.3 and get negative 2.93. and negative 2.93 corresponds to this position on the y-axis."
+  },
+  {
+    "id": "t108",
+    "time": "12:16",
+    "seconds": 736.6,
+    "text": "likewise, we multiply all of the other y-axis coordinates on the blue curve by negative"
+  },
+  {
+    "id": "t109",
+    "time": "12:23",
+    "seconds": 743.3,
+    "text": "1.3 and we end up with a new blue curve."
+  },
+  {
+    "id": "t110",
+    "time": "12:27",
+    "seconds": 747.4,
+    "text": "bam!"
+  },
+  {
+    "id": "t111",
+    "time": "12:30",
+    "seconds": 750.4,
+    "text": "now, let's focus on the connection from the input node, to the bottom node in the hidden layer."
+  },
+  {
+    "id": "t112",
+    "time": "12:37",
+    "seconds": 757.8,
+    "text": "however, this time, we multiply the dosage by negative 2.52, instead of negative 34.4,"
+  },
+  {
+    "id": "t113",
+    "time": "12:47",
+    "seconds": 767.89,
+    "text": "and we add 1.29, instead of 2.14, to get the x-axis coordinate for the activation function."
+  },
+  {
+    "id": "t114",
+    "time": "12:58",
+    "seconds": 778.6,
+    "text": "remember, these values come from fitting the neural network to the data with backpropagation,"
+  },
+  {
+    "id": "t115",
+    "time": "13:05",
+    "seconds": 785.03,
+    "text": "and we'll talk about that in part two in this series."
+  },
+  {
+    "id": "t116",
+    "time": "13:09",
+    "seconds": 789.8,
+    "text": "now, if we plug the lowest dosage, zero, into the neural network, then the x-axis"
+  },
+  {
+    "id": "t117",
+    "time": "13:16",
+    "seconds": 796.19,
+    "text": "coordinate for the activation function is 1.29."
+  },
+  {
+    "id": "t118",
+    "time": "13:21",
+    "seconds": 801.9,
+    "text": "now we plug 1.29 into the activation function to get the corresponding y-axis value,"
+  },
+  {
+    "id": "t119",
+    "time": "13:30",
+    "seconds": 810.27,
+    "text": "and get 1.53. and that corresponds to this yellow dot."
+  },
+  {
+    "id": "t120",
+    "time": "13:37",
+    "seconds": 817.7,
+    "text": "now, we just plug in dosage values from 0 to 1 to get the corresponding y-axis values, and we get this orange curve."
+  },
+  {
+    "id": "t121",
+    "time": "13:48",
+    "seconds": 828.4,
+    "text": "note: just like before, i want to point out that the full range of dosage values,"
+  },
+  {
+    "id": "t122",
+    "time": "13:54",
+    "seconds": 834.24,
+    "text": "from 0 to 1, corresponds to this narrow range of values from the activation function."
+  },
+  {
+    "id": "t123",
+    "time": "14:01",
+    "seconds": 841.5,
+    "text": "in other words, when we plug dosage values from 0 to 1 into the neural network we"
+  },
+  {
+    "id": "t124",
+    "time": "14:08",
+    "seconds": 848.29,
+    "text": "only get x-axis coordinates that are within the red box."
+  },
+  {
+    "id": "t125",
+    "time": "14:14",
+    "seconds": 854.0,
+    "text": "and thus, only the corresponding y-axis values in the red box are used to make this new orange curve."
+  },
+  {
+    "id": "t126",
+    "time": "14:22",
+    "seconds": 862.4,
+    "text": "so we see that fitting a neural network to data gives us different parameter estimates"
+  },
+  {
+    "id": "t127",
+    "time": "14:28",
+    "seconds": 868.84,
+    "text": "on the connections and that results in each node in the hidden layer using different"
+  },
+  {
+    "id": "t128",
+    "time": "14:34",
+    "seconds": 874.2,
+    "text": "portions of the activation functions to create these new and exciting shapes."
+  },
+  {
+    "id": "t129",
+    "time": "14:40",
+    "seconds": 880.5,
+    "text": "now, just like before, we scale the y-axis coordinates on the orange curve, only this"
+  },
+  {
+    "id": "t130",
+    "time": "14:46",
+    "seconds": 886.48,
+    "text": "time we scale by a positive number: 2.28."
+  },
+  {
+    "id": "t131",
+    "time": "14:50",
+    "seconds": 890.8,
+    "text": "beep boop beep! for every number written on the screen] and that gives us this new orange curve."
+  },
+  {
+    "id": "t132",
+    "time": "14:59",
+    "seconds": 899.4,
+    "text": "now the neural network tells us to add the y-axis coordinates from the blue curve"
+  },
+  {
+    "id": "t133",
+    "time": "15:06",
+    "seconds": 906.13,
+    "text": "to the orange curve, and that gives us this green squiggle."
+  },
+  {
+    "id": "t134",
+    "time": "15:11",
+    "seconds": 911.8,
+    "text": "then, finally, we subtract 0.58 from the y-axis values on the green squiggle, and"
+  },
+  {
+    "id": "t135",
+    "time": "15:19",
+    "seconds": 919.97,
+    "text": "we have a green squiggle that fits the data."
+  },
+  {
+    "id": "t136",
+    "time": "15:23",
+    "seconds": 923.5,
+    "text": "bam!"
+  },
+  {
+    "id": "t137",
+    "time": "15:25",
+    "seconds": 925.4,
+    "text": "now, if someone comes along and says that they are using dosage equal to 0.5 we can"
+  },
+  {
+    "id": "t138",
+    "time": "15:32",
+    "seconds": 932.5,
+    "text": "look at the corresponding y-axis coordinate on the green squiggle and see that the dosage will be effective."
+  },
+  {
+    "id": "t139",
+    "time": "15:39",
+    "seconds": 939.9,
+    "text": "or, we can solve for the y-axis coordinate by plugging dosage equals 0.5 into the neural network, and do the math."
+  },
+  {
+    "id": "t140",
+    "time": "16:08",
+    "seconds": 968.1,
+    "text": "[Music] and we see that the y-axis coordinate on the green squiggle is 1.03, and since"
+  },
+  {
+    "id": "t141",
+    "time": "16:19",
+    "seconds": 979.91,
+    "text": "1.03 is closer to 1 than 0, we will conclude that a dosage equal to 0.5 is effective."
+  },
+  {
+    "id": "t142",
+    "time": "16:35",
+    "seconds": 995.8,
+    "text": "double bam!"
+  },
+  {
+    "id": "t143",
+    "time": "16:39",
+    "seconds": 999.1,
+    "text": "now, if you've made it this far you may be wondering why this is called a neural network."
+  },
+  {
+    "id": "t144",
+    "time": "16:45",
+    "seconds": 1005.2,
+    "text": "instead of a big fancy squiggle fitting machine."
+  },
+  {
+    "id": "t145",
+    "time": "16:49",
+    "seconds": 1009.7,
+    "text": "the reason is that way back in the 1940s and 50s, when neural networks were invented,"
+  },
+  {
+    "id": "t146",
+    "time": "16:56",
+    "seconds": 1016.67,
+    "text": "they thought the nodes were vaguely like neurons, and the connections between the nodes were sort of like synapses."
+  },
+  {
+    "id": "t147",
+    "time": "17:04",
+    "seconds": 1024.4,
+    "text": "however, i think they should be called big fancy squiggle fitting machines, because that's what they do."
+  },
+  {
+    "id": "t148",
+    "time": "17:11",
+    "seconds": 1031.4,
+    "text": "note: whether or not you call it a squiggle fitting machine, the parameters that we"
+  },
+  {
+    "id": "t149",
+    "time": "17:17",
+    "seconds": 1037.29,
+    "text": "multiply are called weights, and the parameters that we add are called biases."
+  },
+  {
+    "id": "t150",
+    "time": "17:23",
+    "seconds": 1043.6,
+    "text": "note: this neural network starts with two identical activation functions, but the"
+  },
+  {
+    "id": "t151",
+    "time": "17:29",
+    "seconds": 1049.67,
+    "text": "weights and biases on the connections slice them, flip them, and stretch them into"
+  },
+  {
+    "id": "t152",
+    "time": "17:35",
+    "seconds": 1055.32,
+    "text": "new shapes, which are then added together to get a squiggle that is entirely new."
+  },
+  {
+    "id": "t153",
+    "time": "17:41",
+    "seconds": 1061.1,
+    "text": "and then the squiggle is shifted to fit the data."
+  },
+  {
+    "id": "t154",
+    "time": "17:45",
+    "seconds": 1065.0,
+    "text": "now, if we can create this green squiggle with just two nodes in a single hidden layer,"
+  },
+  {
+    "id": "t155",
+    "time": "17:50",
+    "seconds": 1070.63,
+    "text": "just imagine what types of green squiggles we could fit with more hidden layers and more nodes in each hidden layer."
+  },
+  {
+    "id": "t156",
+    "time": "17:58",
+    "seconds": 1078.9,
+    "text": "in theory, neural networks can fit a green squiggle to just about any dataset, no"
+  },
+  {
+    "id": "t157",
+    "time": "18:04",
+    "seconds": 1084.8,
+    "text": "matter how complicated, and i think that's pretty cool."
+  },
+  {
+    "id": "t158",
+    "time": "18:08",
+    "seconds": 1088.8,
+    "text": "triple bam!"
+  },
+  {
+    "id": "t159",
+    "time": "18:12",
+    "seconds": 1092.0,
+    "text": "now it's time for some shameless self-promotion!"
+  },
+  {
+    "id": "t160",
+    "time": "18:17",
+    "seconds": 1097.0,
+    "text": "if you want to review statistics and machine learning offline check out the StatQuest study guides at statquest.org."
+  },
+  {
+    "id": "t161",
+    "time": "18:25",
+    "seconds": 1105.5,
+    "text": "there's something for everyone."
+  },
+  {
+    "id": "t162",
+    "time": "18:28",
+    "seconds": 1108.2,
+    "text": "hooray!"
+  },
+  {
+    "id": "t163",
+    "time": "18:29",
+    "seconds": 1109.4,
+    "text": "we've made it to the end of another exciting StatQuest."
+  },
+  {
+    "id": "t164",
+    "time": "18:32",
+    "seconds": 1112.7,
+    "text": "if you like this StatQuest and want to see more, please subscribe."
+  },
+  {
+    "id": "t165",
+    "time": "18:36",
+    "seconds": 1116.6,
+    "text": "and if you want to support StatQuest consider contributing to my patreon campaign,"
+  },
+  {
+    "id": "t166",
+    "time": "18:41",
+    "seconds": 1121.3,
+    "text": "becoming a channel member, buying one or two of my original songs, or a t-shirt, or a hoodie, or just donate."
+  },
+  {
+    "id": "t167",
+    "time": "18:48",
+    "seconds": 1128.1,
+    "text": "the links are in the description below."
+  },
+  {
+    "id": "t168",
+    "time": "18:50",
+    "seconds": 1130.5,
+    "text": "alright, until next time."
+  },
+  {
+    "id": "t169",
+    "time": "18:52",
+    "seconds": 1132.7,
+    "text": "quest on!"
+  }
+]
