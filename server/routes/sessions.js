@@ -24,6 +24,14 @@ router.get('/', (req, res) => {
   res.json(sessions)
 })
 
+// Update participant ID for a session
+router.patch('/:id', (req, res) => {
+  const { participantId } = req.body
+  db.prepare('UPDATE sessions SET participant_id = ? WHERE id = ?')
+    .run(participantId ?? null, req.params.id)
+  res.json({ ok: true })
+})
+
 // Get a single session with all its data
 router.get('/:id', (req, res) => {
   const session = db.prepare('SELECT * FROM sessions WHERE id = ?').get(req.params.id)

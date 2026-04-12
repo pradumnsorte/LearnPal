@@ -12,10 +12,11 @@ db.pragma('journal_mode = WAL')
 
 db.exec(`
   CREATE TABLE IF NOT EXISTS sessions (
-    id          INTEGER PRIMARY KEY AUTOINCREMENT,
-    video_id    TEXT    NOT NULL,
-    video_title TEXT    NOT NULL,
-    created_at  TEXT    NOT NULL DEFAULT (datetime('now'))
+    id             INTEGER PRIMARY KEY AUTOINCREMENT,
+    video_id       TEXT    NOT NULL,
+    video_title    TEXT    NOT NULL,
+    participant_id TEXT,
+    created_at     TEXT    NOT NULL DEFAULT (datetime('now'))
   );
 
   CREATE TABLE IF NOT EXISTS messages (
@@ -51,6 +52,14 @@ db.exec(`
     difficulty     INTEGER NOT NULL DEFAULT 1,
     provider       TEXT,
     created_at     TEXT    NOT NULL DEFAULT (datetime('now'))
+  );
+
+  CREATE TABLE IF NOT EXISTS events (
+    id               INTEGER PRIMARY KEY AUTOINCREMENT,
+    session_id       INTEGER NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+    event_type       TEXT    NOT NULL,
+    playback_seconds REAL,
+    created_at       TEXT    NOT NULL DEFAULT (datetime('now'))
   );
 `)
 

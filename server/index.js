@@ -5,6 +5,8 @@ import sessionsRouter from './routes/sessions.js'
 import chatRouter from './routes/chat.js'
 import quizRouter from './routes/quiz.js'
 import snapsRouter from './routes/snaps.js'
+import eventsRouter from './routes/events.js'
+import exportRouter from './routes/export.js'
 
 const app = express()
 const PORT = process.env.PORT || 3001
@@ -16,6 +18,8 @@ app.use('/api/sessions', sessionsRouter)
 app.use('/api/chat',     chatRouter)
 app.use('/api/quiz',     quizRouter)
 app.use('/api/snaps',    snapsRouter)
+app.use('/api/events',   eventsRouter)
+app.use('/api/export',   exportRouter)
 
 app.listen(PORT, () => {
   console.log(`LearnPal server running on http://localhost:${PORT}`)

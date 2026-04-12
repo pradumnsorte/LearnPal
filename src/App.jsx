@@ -44,7 +44,7 @@ const PROVIDER_LABELS = {
   [PROVIDERS.OLLAMA]: '🦙 Ollama',
 }
 
-const buildSystemPrompt = (currentSeconds) => {
+const buildSystemPrompt = (currentSeconds, quizHistory = [], messages = []) => {
   const mins = Math.floor(currentSeconds / 60)
   const secs = Math.floor(currentSeconds % 60)
   const timeStr = `${mins}:${String(secs).padStart(2, '0')}`
@@ -55,6 +55,25 @@ const buildSystemPrompt = (currentSeconds) => {
     .map((r) => `[${r.time}] ${r.text}`)
     .join('\n')
 
+  // Quiz attempts — tells Pal what the user understood vs struggled with
+  const quizBlock = quizHistory.length > 0
+    ? `\nQuiz attempts this session:\n${quizHistory
+        .map((q) => `- "${q.question}" — ${q.isCorrect ? 'answered correctly' : 'answered incorrectly'}`)
+        .join('\n')}`
+    : ''
+
+  // Snap clarifications — tells Pal what visual elements confused the user
+  const snaps = messages.filter((m) => m.isSnippet && m.snippet)
+  const snapBlock = snaps.length > 0
+    ? `\nVisual regions the user asked about:\n${snaps
+        .map((m) => `- At ${m.snippet.timestampStr}: "${m.snippet.userPrompt || 'asked for explanation'}"`)
+        .join('\n')}`
+    : ''
+
+  const sessionContext = quizBlock || snapBlock
+    ? `\n--- Session context ---${quizBlock}${snapBlock}\n`
+    : ''
+
   return `You are Pal, a friendly learning assistant embedded in LearnPal, a video learning app.
 
 The user is watching: "The Essential Main Ideas of Neural Networks" by StatQuest.
@@ -62,149 +81,26 @@ Current video position: ${timeStr}
 
 Recent transcript context:
 ${recentContext || 'Video just started.'}
-
-Help the user understand the video. Be concise (under 150 words unless asked for more), clear, and educational. Use simple language and real-world examples when helpful.`
+${sessionContext}
+Help the user understand the video. Be concise (under 150 words unless asked for more), clear, and educational. Use simple language and real-world examples when helpful. Use the session context above to personalise your responses — if the user got a quiz question wrong, address that gap; if they asked about a visual region, connect your answer to what they saw.`
 }
 
-// imageDataUrl: JPEG data-URL of the screen-captured region, or null for text-only turns.
-// When present it is attached to the last user message as a vision input so the
-// model analyses exactly what the learner selected, not a summary of it.
-const callAI = async (provider, messages, currentSeconds, imageDataUrl = null) => {
-  const system = buildSystemPrompt(currentSeconds)
-  const base64 = imageDataUrl ? imageDataUrl.replace(/^data:image\/\w+;base64,/, '') : null
-
-  // ── Groq ───────────────────────────────────────────────────────────────────
-  // Groq's API is OpenAI-compatible. Vision is not supported — the image is
-  // omitted and the text prompt carries all context for snap-to-ask turns.
-  if (provider === PROVIDERS.GROQ) {
-    const groqMessages = messages.map(({ role, content }) => ({ role, content }))
-    const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${import.meta.env.VITE_GROQ_API_KEY}`,
-      },
-      body: JSON.stringify({
-        model: 'llama-3.3-70b-versatile',
-        max_tokens: 512,
-        messages: [{ role: 'system', content: system }, ...groqMessages],
-      }),
-    })
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}))
-      throw new Error(err?.error?.message ?? `Groq error ${res.status}`)
-    }
-    const data = await res.json()
-    return data.choices[0].message.content
-  }
-
-  // ── Ollama ─────────────────────────────────────────────────────────────────
-  // Runs locally. OpenAI-compatible endpoint, no API key required.
-  // Vision works if VITE_OLLAMA_MODEL is a vision-capable model (e.g. llava).
-  if (provider === PROVIDERS.OLLAMA) {
-    const ollamaModel = import.meta.env.VITE_OLLAMA_MODEL || 'llama3.2'
-    const ollamaMessages = messages.map(({ role, content }, i) => {
-      const isLastUser = role === 'user' && i === messages.length - 1
-      if (base64 && isLastUser) {
-        return {
-          role,
-          content: [
-            { type: 'image_url', image_url: { url: imageDataUrl } },
-            { type: 'text', text: content },
-          ],
-        }
-      }
-      return { role, content }
-    })
-    const res = await fetch('http://localhost:11434/v1/chat/completions', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: ollamaModel,
-        max_tokens: 512,
-        messages: [{ role: 'system', content: system }, ...ollamaMessages],
-      }),
-    })
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}))
-      throw new Error(err?.error?.message ?? `Ollama error ${res.status} — is Ollama running?`)
-    }
-    const data = await res.json()
-    return data.choices[0].message.content
-  }
-
-  // ── Claude / OpenAI shared message shape ───────────────────────────────────
-  const apiMessages = messages.map(({ role, content }, i) => {
-    const isLastUser = role === 'user' && i === messages.length - 1
-    if (base64 && isLastUser) {
-      if (provider === PROVIDERS.CLAUDE) {
-        return {
-          role,
-          content: [
-            { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: base64 } },
-            { type: 'text', text: content },
-          ],
-        }
-      }
-      if (provider === PROVIDERS.OPENAI) {
-        return {
-          role,
-          content: [
-            { type: 'image_url', image_url: { url: imageDataUrl } },
-            { type: 'text', text: content },
-          ],
-        }
-      }
-    }
-    return { role, content }
+// All AI chat calls go through the backend — provider dispatch and key management
+// happen server-side. sessionId is optional; when present the server saves the
+// conversation to the database.
+const callAI = async (provider, messages, currentSeconds, imageDataUrl = null, sessionId = null, quizHistory = []) => {
+  const systemPrompt = buildSystemPrompt(currentSeconds, quizHistory, messages)
+  const res = await fetch('/api/chat', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ provider, messages, systemPrompt, imageDataUrl, sessionId }),
   })
-
-  if (provider === PROVIDERS.CLAUDE) {
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': import.meta.env.VITE_ANTHROPIC_API_KEY,
-        'anthropic-version': '2023-06-01',
-        'anthropic-dangerous-direct-browser-access': 'true',
-      },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-6',
-        max_tokens: 512,
-        system,
-        messages: apiMessages,
-      }),
-    })
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}))
-      throw new Error(err?.error?.message ?? `Claude error ${res.status}`)
-    }
-    const data = await res.json()
-    return data.content[0].text
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error(err?.error ?? `Server error ${res.status}`)
   }
-
-  if (provider === PROVIDERS.OPENAI) {
-    const res = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${import.meta.env.VITE_OPENAI_API_KEY}`,
-      },
-      body: JSON.stringify({
-        model: 'gpt-4o',
-        max_tokens: 512,
-        messages: [{ role: 'system', content: system }, ...apiMessages],
-      }),
-    })
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}))
-      throw new Error(err?.error?.message ?? `OpenAI error ${res.status}`)
-    }
-    const data = await res.json()
-    return data.choices[0].message.content
-  }
-
-  throw new Error('Unknown AI provider')
+  const data = await res.json()
+  return data.reply
 }
 
 // ─── AI quiz generator ────────────────────────────────────────────────────────
@@ -268,98 +164,19 @@ Rules:
 - Explanation: 1-2 sentences clarifying why the answer is correct`
 }
 
-// Provider dispatch — receives a finished prompt, returns a parsed question object.
-// To add a new provider: add one more if-block here. Nothing else needs to change.
+// Quiz API calls go through the backend — same security and persistence benefits.
+// Provider dispatch lives in server/routes/quiz.js.
 const callQuizAPI = async (provider, prompt) => {
-  if (provider === PROVIDERS.GROQ) {
-    const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${import.meta.env.VITE_GROQ_API_KEY}`,
-      },
-      body: JSON.stringify({
-        model: 'llama-3.3-70b-versatile',
-        max_tokens: 512,
-        response_format: { type: 'json_object' },
-        messages: [{ role: 'user', content: prompt }],
-      }),
-    })
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}))
-      throw new Error(err?.error?.message ?? `Groq error ${res.status}`)
-    }
-    const data = await res.json()
-    return JSON.parse(data.choices[0].message.content)
+  const res = await fetch('/api/quiz/generate', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ provider, prompt }),
+  })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error(err?.error ?? `Server error ${res.status}`)
   }
-
-  if (provider === PROVIDERS.OLLAMA) {
-    const ollamaModel = import.meta.env.VITE_OLLAMA_MODEL || 'llama3.2'
-    const res = await fetch('http://localhost:11434/v1/chat/completions', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: ollamaModel,
-        max_tokens: 512,
-        messages: [{ role: 'user', content: prompt }],
-      }),
-    })
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}))
-      throw new Error(err?.error?.message ?? `Ollama error ${res.status} — is Ollama running?`)
-    }
-    const data = await res.json()
-    const raw = data.choices[0].message.content
-    const cleaned = raw.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '').trim()
-    return JSON.parse(cleaned)
-  }
-
-  if (provider === PROVIDERS.CLAUDE) {
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': import.meta.env.VITE_ANTHROPIC_API_KEY,
-        'anthropic-version': '2023-06-01',
-        'anthropic-dangerous-direct-browser-access': 'true',
-      },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-6',
-        max_tokens: 512,
-        messages: [{ role: 'user', content: prompt }],
-      }),
-    })
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}))
-      throw new Error(err?.error?.message ?? `Claude error ${res.status}`)
-    }
-    const data = await res.json()
-    return JSON.parse(data.content[0].text)
-  }
-
-  if (provider === PROVIDERS.OPENAI) {
-    const res = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${import.meta.env.VITE_OPENAI_API_KEY}`,
-      },
-      body: JSON.stringify({
-        model: 'gpt-4o',
-        max_tokens: 512,
-        response_format: { type: 'json_object' },
-        messages: [{ role: 'user', content: prompt }],
-      }),
-    })
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}))
-      throw new Error(err?.error?.message ?? `OpenAI error ${res.status}`)
-    }
-    const data = await res.json()
-    return JSON.parse(data.choices[0].message.content)
-  }
-
-  throw new Error('Unknown AI provider')
+  return res.json()
 }
 
 // Thin orchestrator: validate watchtime → build prompt → dispatch to provider.
@@ -480,6 +297,8 @@ function App() {
   const transcriptsHeaderRef = useRef(null)
   const userScrolledRef = useRef(false)            // true while user is manually scrolling transcript
   const userScrollTimerRef = useRef(null)          // resets userScrolledRef after 4s of inactivity
+  const firstInteractionLoggedRef = useRef(false)  // ensures first_interaction is logged only once
+  const logEventRef = useRef(null)                  // always points to latest logEvent
 
   // UI state
   const [chatInput, setChatInput] = useState('')
@@ -502,6 +321,7 @@ function App() {
   const [askedQuestions, setAskedQuestions] = useState([])
   const [quizDifficulty, setQuizDifficulty] = useState(1)
   const [consecutiveCorrect, setConsecutiveCorrect] = useState(0)
+  const [quizHistory, setQuizHistory] = useState([])
   const [currentPlaybackSeconds, setCurrentPlaybackSeconds] = useState(0)
   const [activeTranscriptId, setActiveTranscriptId] = useState(transcriptRows[0]?.id ?? '')
 
@@ -510,6 +330,8 @@ function App() {
   const [messages, setMessages] = useState([])
   const [isLoading, setIsLoading] = useState(false)
   const [aiError, setAiError] = useState(null)
+  const [sessionId, setSessionId] = useState(null)
+  const [participantId, setParticipantId] = useState('')
 
   // Sticky player state — no stageHeight state; CSS does the animation
   const [isCompact, setIsCompact] = useState(false)
@@ -535,6 +357,47 @@ function App() {
   const seekPercent = duration > 0 ? (currentPlaybackSeconds / duration) * 100 : 0
 
   // ── YouTube player setup ──────────────────────────────────────────────────
+
+  // Create a session on mount so all activity is linked to this watch session.
+  // Fails silently if the server isn't running — app still works without it.
+  useEffect(() => {
+    fetch('/api/sessions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ videoId: VIDEO_ID, videoTitle: 'The Essential Main Ideas of Neural Networks' }),
+    })
+      .then((r) => r.json())
+      .then((data) => setSessionId(data.id))
+      .catch(() => {})
+  }, [])
+
+  // logEvent — fire-and-forget behaviour tracking. Uses sessionId from closure.
+  // sendBeacon is used for session_end so the request survives page unload.
+  const logEvent = useCallback((eventType, playbackSeconds = null) => {
+    if (!sessionId) return
+    const body = JSON.stringify({ sessionId, eventType, playbackSeconds })
+    if (eventType === 'session_end') {
+      navigator.sendBeacon('/api/events', new Blob([body], { type: 'application/json' }))
+    } else {
+      fetch('/api/events', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body,
+      }).catch(() => {})
+    }
+  }, [sessionId])
+
+  // Keep ref in sync so onStateChange (set up once on mount) always calls latest logEvent
+  useEffect(() => { logEventRef.current = logEvent }, [logEvent])
+
+  // Log session_end with final playback position when tab is closed or refreshed
+  useEffect(() => {
+    const handleUnload = () => {
+      logEvent('session_end', playerRef.current?.getCurrentTime?.() ?? null)
+    }
+    window.addEventListener('beforeunload', handleUnload)
+    return () => window.removeEventListener('beforeunload', handleUnload)
+  }, [logEvent])
 
   useEffect(() => {
     let disposed = false
@@ -580,10 +443,18 @@ function App() {
           },
           onStateChange: (e) => {
             const playing = e.data === 1
+            const ended  = e.data === 0
             isPlayingRef.current = playing
             setIsPlaying(playing)
             const d = e.target.getDuration()
             if (d > 0) setDuration(d)
+
+            // Behaviour tracking — use ref so sessionId is always current
+            const pos = e.target.getCurrentTime?.() ?? null
+            if (playing) logEventRef.current?.('video_play', pos)
+            else if (ended) logEventRef.current?.('video_ended', pos)
+            else logEventRef.current?.('video_pause', pos)
+
             // Auto-hide timer only relevant for custom controls
             if (playerControlsModeRef.current === 'custom') {
               if (playing) {
@@ -821,14 +692,40 @@ function App() {
     setAiError(null)
     setIsLoading(true)
 
+    // Log first interaction once per session
+    if (!firstInteractionLoggedRef.current) {
+      firstInteractionLoggedRef.current = true
+      logEvent('first_interaction', currentPlaybackSeconds)
+    }
+
     try {
       const reply = await callAI(
         aiProvider,
         updated.map(({ role, content: c }) => ({ role, content: c })),
         currentPlaybackSeconds,
-        snippet?.imageDataUrl ?? null   // real screen-captured region — null for text turns
+        snippet?.imageDataUrl ?? null,
+        sessionId,
+        quizHistory
       )
       setMessages((prev) => [...prev, { role: 'assistant', content: reply }])
+
+      // Save snap to backend after reply — fire and forget
+      if (sessionId && snippet) {
+        fetch('/api/snaps', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            sessionId,
+            imageData: snippet.imageDataUrl,
+            timestampSeconds: snippet.timestampSeconds,
+            timestampStr: snippet.timestampStr,
+            region: snippet.region,
+            userPrompt: snippet.userPrompt,
+            aiResponse: reply,
+            provider: aiProvider,
+          }),
+        }).catch(() => {})
+      }
     } catch (err) {
       setAiError(err.message)
     } finally {
@@ -1015,6 +912,10 @@ function App() {
 
   const openQuiz = () => {
     playerRef.current?.pauseVideo?.()
+    if (!firstInteractionLoggedRef.current) {
+      firstInteractionLoggedRef.current = true
+      logEvent('first_interaction', currentPlaybackSeconds)
+    }
     fetchQuiz(askedQuestions)
   }
 
@@ -1022,20 +923,37 @@ function App() {
     if (selectedOption === null) return
     setMode('quiz_feedback')
     const isCorrect = selectedOption === currentQuiz.correctIndex
+    setQuizHistory((prev) => [...prev, { question: currentQuiz.question, isCorrect }])
     if (isCorrect) {
       const newStreak = consecutiveCorrect + 1
       if (newStreak >= 2 && quizDifficulty < 3) {
         setQuizDifficulty(quizDifficulty + 1)
         setConsecutiveCorrect(0)
       } else if (newStreak >= 2) {
-        // Already at max difficulty — reset streak silently
         setConsecutiveCorrect(0)
       } else {
         setConsecutiveCorrect(newStreak)
       }
     } else {
-      // Wrong answer: difficulty stays, streak resets
       setConsecutiveCorrect(0)
+    }
+
+    // Save attempt to backend — fire and forget
+    if (sessionId && currentQuiz) {
+      fetch('/api/quiz/submit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sessionId,
+          question: currentQuiz.question,
+          options: currentQuiz.options,
+          correctIndex: currentQuiz.correctIndex,
+          selectedIndex: selectedOption,
+          isCorrect,
+          difficulty: quizDifficulty,
+          provider: aiProvider,
+        }),
+      }).catch(() => {})
     }
   }
 
@@ -1046,6 +964,51 @@ function App() {
     setCurrentQuiz(null)
     setQuizError(null)
     setMode('default_viewing')
+  }
+
+  // ── Researcher controls ───────────────────────────────────────────────────
+
+  const saveParticipantId = (id) => {
+    if (!sessionId) return
+    fetch(`/api/sessions/${sessionId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ participantId: id }),
+    }).catch(() => {})
+  }
+
+  const resetSession = () => {
+    // Pause video and reset it to the beginning
+    playerRef.current?.pauseVideo?.()
+    playerRef.current?.seekTo?.(0, true)
+
+    // Reset all UI and AI state
+    setMessages([])
+    setAiError(null)
+    setChatInput('')
+    setMode('default_viewing')
+    setCurrentQuiz(null)
+    setQuizError(null)
+    setSelectedOption(null)
+    setAskedQuestions([])
+    setQuizDifficulty(1)
+    setConsecutiveCorrect(0)
+    setQuizHistory([])
+    setSelectionRect(null)
+    setSnippetContext(null)
+    setSnapPrompt('')
+    firstInteractionLoggedRef.current = false
+
+    // Create a new session
+    setParticipantId('')
+    fetch('/api/sessions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ videoId: VIDEO_ID, videoTitle: 'The Essential Main Ideas of Neural Networks' }),
+    })
+      .then((r) => r.json())
+      .then((data) => setSessionId(data.id))
+      .catch(() => {})
   }
 
   // ── Transcript ────────────────────────────────────────────────────────────
@@ -1598,6 +1561,31 @@ function App() {
           </p>
         </aside>
       </main>
+
+      {/* Researcher panel — hidden in bottom-left corner */}
+      <div className="lp-researcher-panel">
+        <input
+          type="text"
+          className="lp-researcher-input"
+          placeholder="Participant ID"
+          value={participantId}
+          onChange={(e) => {
+            setParticipantId(e.target.value)
+            saveParticipantId(e.target.value)
+          }}
+        />
+        <button type="button" className="lp-researcher-reset" onClick={resetSession}>
+          Reset
+        </button>
+        <a
+          className="lp-researcher-export"
+          href="/api/export"
+          target="_blank"
+          rel="noreferrer"
+        >
+          Export CSV
+        </a>
+      </div>
 
       {/* Quiz modal */}
       {isQuizOpen && (

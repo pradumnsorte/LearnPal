@@ -1,7 +1,24 @@
 import { Router } from 'express'
 import db from '../db.js'
+import { jsonrepair } from 'jsonrepair'
 
 const router = Router()
+
+// Robustly extract and parse the first JSON object from a model response.
+// 1. Slices from the first '{' to the last '}' to strip surrounding text/fences
+// 2. Tries standard JSON.parse first (fast path)
+// 3. Falls back to jsonrepair which fixes trailing commas, missing quotes, etc.
+const extractJSON = (raw) => {
+  const start = raw.indexOf('{')
+  const end = raw.lastIndexOf('}')
+  if (start === -1 || end === -1) throw new Error('No JSON object found in model response')
+  const slice = raw.slice(start, end + 1)
+  try {
+    return JSON.parse(slice)
+  } catch {
+    return JSON.parse(jsonrepair(slice))
+  }
+}
 
 // ── Provider dispatch ─────────────────────────────────────────────────────────
 
@@ -15,7 +32,7 @@ const callQuizProvider = async (provider, prompt) => {
       },
       body: JSON.stringify({
         model: 'llama-3.3-70b-versatile',
-        max_tokens: 512,
+        max_tokens: 1024,
         response_format: { type: 'json_object' },
         messages: [{ role: 'user', content: prompt }],
       }),
@@ -25,7 +42,7 @@ const callQuizProvider = async (provider, prompt) => {
       throw new Error(err?.error?.message ?? `Groq error ${res.status}`)
     }
     const data = await res.json()
-    return JSON.parse(data.choices[0].message.content)
+    return extractJSON(data.choices[0].message.content)
   }
 
   if (provider === 'ollama') {
@@ -35,7 +52,7 @@ const callQuizProvider = async (provider, prompt) => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         model: ollamaModel,
-        max_tokens: 512,
+        max_tokens: 1024,
         messages: [{ role: 'user', content: prompt }],
       }),
     })
@@ -44,9 +61,7 @@ const callQuizProvider = async (provider, prompt) => {
       throw new Error(err?.error?.message ?? `Ollama error ${res.status} — is Ollama running?`)
     }
     const data = await res.json()
-    const raw = data.choices[0].message.content
-    const cleaned = raw.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '').trim()
-    return JSON.parse(cleaned)
+    return extractJSON(data.choices[0].message.content)
   }
 
   if (provider === 'claude') {
@@ -59,7 +74,7 @@ const callQuizProvider = async (provider, prompt) => {
       },
       body: JSON.stringify({
         model: 'claude-sonnet-4-6',
-        max_tokens: 512,
+        max_tokens: 1024,
         messages: [{ role: 'user', content: prompt }],
       }),
     })
@@ -68,7 +83,7 @@ const callQuizProvider = async (provider, prompt) => {
       throw new Error(err?.error?.message ?? `Claude error ${res.status}`)
     }
     const data = await res.json()
-    return JSON.parse(data.content[0].text)
+    return extractJSON(data.content[0].text)
   }
 
   if (provider === 'openai') {
@@ -80,7 +95,7 @@ const callQuizProvider = async (provider, prompt) => {
       },
       body: JSON.stringify({
         model: 'gpt-4o',
-        max_tokens: 512,
+        max_tokens: 1024,
         response_format: { type: 'json_object' },
         messages: [{ role: 'user', content: prompt }],
       }),
@@ -90,7 +105,7 @@ const callQuizProvider = async (provider, prompt) => {
       throw new Error(err?.error?.message ?? `OpenAI error ${res.status}`)
     }
     const data = await res.json()
-    return JSON.parse(data.choices[0].message.content)
+    return extractJSON(data.choices[0].message.content)
   }
 
   throw new Error('Unknown provider')
