@@ -1034,11 +1034,38 @@
 }
 
 .lp-quiz-meta {
+  align-items: center;
   color: #6b7280;
+  display: flex;
   font-family: var(--ff-ui);
   font-size: var(--fs-xs);
   font-weight: var(--fw-regular);
+  gap: 8px;
   margin: 6px 0 0;
+}
+
+.lp-quiz-difficulty {
+  border-radius: 4px;
+  font-size: var(--fs-2xs);
+  font-weight: var(--fw-semibold);
+  letter-spacing: 0.04em;
+  padding: 2px 7px;
+  text-transform: uppercase;
+}
+
+.lp-difficulty-1 {
+  background: #e0f2fe;
+  color: #0369a1;
+}
+
+.lp-difficulty-2 {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.lp-difficulty-3 {
+  background: #ede9fe;
+  color: #6d28d9;
 }
 
 .lp-quiz-question {
@@ -1106,6 +1133,16 @@
 
 .lp-quiz-feedback p + p {
   margin-top: 6px;
+}
+
+.lp-feedback-correct {
+  color: #15803d;
+  font-weight: var(--fw-medium);
+}
+
+.lp-feedback-wrong {
+  color: #b91c1c;
+  font-weight: var(--fw-medium);
 }
 
 .lp-quiz-actions {

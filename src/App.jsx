@@ -34,13 +34,14 @@ const loadYouTubeIframeApi = () => {
 
 // ─── AI providers ────────────────────────────────────────────────────────────
 
-const PROVIDERS = { CLAUDE: 'claude', OPENAI: 'openai', GROQ: 'groq' }
+const PROVIDERS = { CLAUDE: 'claude', OPENAI: 'openai', GROQ: 'groq', OLLAMA: 'ollama' }
 
-const PROVIDER_CYCLE = [PROVIDERS.CLAUDE, PROVIDERS.OPENAI, PROVIDERS.GROQ]
+const PROVIDER_CYCLE = [PROVIDERS.CLAUDE, PROVIDERS.OPENAI, PROVIDERS.GROQ, PROVIDERS.OLLAMA]
 const PROVIDER_LABELS = {
   [PROVIDERS.CLAUDE]: '✦ Claude',
   [PROVIDERS.OPENAI]: '⬡ GPT-4o',
   [PROVIDERS.GROQ]:   '⚡ Groq',
+  [PROVIDERS.OLLAMA]: '🦙 Ollama',
 }
 
 const buildSystemPrompt = (currentSeconds) => {
@@ -92,6 +93,41 @@ const callAI = async (provider, messages, currentSeconds, imageDataUrl = null) =
     if (!res.ok) {
       const err = await res.json().catch(() => ({}))
       throw new Error(err?.error?.message ?? `Groq error ${res.status}`)
+    }
+    const data = await res.json()
+    return data.choices[0].message.content
+  }
+
+  // ── Ollama ─────────────────────────────────────────────────────────────────
+  // Runs locally. OpenAI-compatible endpoint, no API key required.
+  // Vision works if VITE_OLLAMA_MODEL is a vision-capable model (e.g. llava).
+  if (provider === PROVIDERS.OLLAMA) {
+    const ollamaModel = import.meta.env.VITE_OLLAMA_MODEL || 'llama3.2'
+    const ollamaMessages = messages.map(({ role, content }, i) => {
+      const isLastUser = role === 'user' && i === messages.length - 1
+      if (base64 && isLastUser) {
+        return {
+          role,
+          content: [
+            { type: 'image_url', image_url: { url: imageDataUrl } },
+            { type: 'text', text: content },
+          ],
+        }
+      }
+      return { role, content }
+    })
+    const res = await fetch('http://localhost:11434/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: ollamaModel,
+        max_tokens: 512,
+        messages: [{ role: 'system', content: system }, ...ollamaMessages],
+      }),
+    })
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}))
+      throw new Error(err?.error?.message ?? `Ollama error ${res.status} — is Ollama running?`)
     }
     const data = await res.json()
     return data.choices[0].message.content
@@ -172,30 +208,53 @@ const callAI = async (provider, messages, currentSeconds, imageDataUrl = null) =
 }
 
 // ─── AI quiz generator ────────────────────────────────────────────────────────
+//
+// Architecture: three layers kept strictly separate so adding a new AI provider
+// only ever requires touching callQuizAPI — the difficulty logic and prompt
+// construction stay untouched.
+//
+//   buildQuizPrompt  — pure prompt assembly (difficulty, dedup, transcript)
+//   callQuizAPI      — provider dispatch: receives a finished prompt, returns parsed JSON
+//   generateQuizQuestion — orchestrator: validate → build → call
 
-const generateQuizQuestion = async (provider, currentSeconds, previousQuestions = []) => {
+// Difficulty levels — the only place difficulty semantics are defined.
+// All providers receive the same instruction text.
+const QUIZ_DIFFICULTY_LEVELS = {
+  1: {
+    label: 'Conceptual',
+    instruction: 'Ask a CONCEPTUAL question — test recall and definition. Example style: "What is X?", "Which of these best describes Y?". The answer should be directly supportable by the transcript.',
+  },
+  2: {
+    label: 'Applied',
+    instruction: 'Ask an APPLIED question — test reasoning and understanding. Example style: "Why does X work this way?", "What would happen if Y changed?", "How does X help achieve Z?". The student must understand the concept to answer, not just recall a phrase.',
+  },
+  3: {
+    label: 'Creative',
+    instruction: 'Ask a CREATIVE question — test synthesis and deep understanding. Example style: real-world analogies, hypotheticals, cross-concept connections, or "How would you explain X to someone who has never seen a neural network?". The student must truly grasp the concept, not just know its definition.',
+  },
+}
+
+// Builds the full prompt string. Pure function — no API calls, no side effects.
+const buildQuizPrompt = (currentSeconds, previousQuestions, difficulty) => {
   const watchedRows = transcriptRows.filter((r) => r.seconds <= currentSeconds)
-
-  if (watchedRows.length < 3) {
-    throw new Error('Watch a bit more of the video before generating a quiz question.')
-  }
-
-  const transcriptContext = watchedRows
-    .map((r) => `[${r.time}] ${r.text}`)
-    .join('\n')
+  const transcriptContext = watchedRows.map((r) => `[${r.time}] ${r.text}`).join('\n')
+  const level = QUIZ_DIFFICULTY_LEVELS[difficulty]
 
   const previousBlock = previousQuestions.length > 0
-    ? `\n\nAvoid repeating these questions you already asked:\n${previousQuestions.map((q, i) => `${i + 1}. ${q}`).join('\n')}`
+    ? `\n\nDo NOT repeat or closely resemble any of these already-asked questions:\n${previousQuestions.map((q, i) => `${i + 1}. ${q}`).join('\n')}`
     : ''
 
-  const prompt = `You are a quiz generator for an educational video app.
+  return `You are a quiz generator for an educational video app.
 
 The user has watched this portion of "The Essential Main Ideas of Neural Networks" by StatQuest:
 ${transcriptContext}${previousBlock}
 
-Generate exactly ONE multiple-choice quiz question that tests understanding of a specific concept from what was watched.
+Difficulty: ${level.label}
+${level.instruction}
 
-Respond ONLY with a valid JSON object — no markdown, no explanation, nothing else — in this exact shape:
+Generate exactly ONE multiple-choice quiz question.
+
+Respond ONLY with a valid JSON object — no markdown, no explanation, nothing else:
 {
   "question": "...",
   "options": ["...", "...", "...", "..."],
@@ -204,11 +263,14 @@ Respond ONLY with a valid JSON object — no markdown, no explanation, nothing e
 }
 
 Rules:
-- The question must be based strictly on the watched content above
 - Exactly 4 options
 - correctIndex is 0-based
-- The explanation should be 1-2 sentences clarifying why the answer is correct`
+- Explanation: 1-2 sentences clarifying why the answer is correct`
+}
 
+// Provider dispatch — receives a finished prompt, returns a parsed question object.
+// To add a new provider: add one more if-block here. Nothing else needs to change.
+const callQuizAPI = async (provider, prompt) => {
   if (provider === PROVIDERS.GROQ) {
     const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
@@ -229,6 +291,27 @@ Rules:
     }
     const data = await res.json()
     return JSON.parse(data.choices[0].message.content)
+  }
+
+  if (provider === PROVIDERS.OLLAMA) {
+    const ollamaModel = import.meta.env.VITE_OLLAMA_MODEL || 'llama3.2'
+    const res = await fetch('http://localhost:11434/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: ollamaModel,
+        max_tokens: 512,
+        messages: [{ role: 'user', content: prompt }],
+      }),
+    })
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}))
+      throw new Error(err?.error?.message ?? `Ollama error ${res.status} — is Ollama running?`)
+    }
+    const data = await res.json()
+    const raw = data.choices[0].message.content
+    const cleaned = raw.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '').trim()
+    return JSON.parse(cleaned)
   }
 
   if (provider === PROVIDERS.CLAUDE) {
@@ -277,6 +360,16 @@ Rules:
   }
 
   throw new Error('Unknown AI provider')
+}
+
+// Thin orchestrator: validate watchtime → build prompt → dispatch to provider.
+const generateQuizQuestion = async (provider, currentSeconds, previousQuestions = [], difficulty = 1) => {
+  const watchedRows = transcriptRows.filter((r) => r.seconds <= currentSeconds)
+  if (watchedRows.length < 3) {
+    throw new Error('Watch a bit more of the video before generating a quiz question.')
+  }
+  const prompt = buildQuizPrompt(currentSeconds, previousQuestions, difficulty)
+  return callQuizAPI(provider, prompt)
 }
 
 // ─── Snap-to-ask: real screen capture of the selected region ────────────────
@@ -407,6 +500,8 @@ function App() {
   const [quizError, setQuizError] = useState(null)
   const [selectedOption, setSelectedOption] = useState(null)
   const [askedQuestions, setAskedQuestions] = useState([])
+  const [quizDifficulty, setQuizDifficulty] = useState(1)
+  const [consecutiveCorrect, setConsecutiveCorrect] = useState(0)
   const [currentPlaybackSeconds, setCurrentPlaybackSeconds] = useState(0)
   const [activeTranscriptId, setActiveTranscriptId] = useState(transcriptRows[0]?.id ?? '')
 
@@ -906,7 +1001,7 @@ function App() {
     setSelectedOption(null)
     setMode('quiz_loading')
     try {
-      const q = await generateQuizQuestion(aiProvider, currentPlaybackSeconds, prevQuestions)
+      const q = await generateQuizQuestion(aiProvider, currentPlaybackSeconds, prevQuestions, quizDifficulty)
       setCurrentQuiz(q)
       setAskedQuestions((prev) => [...prev, q.question])
       setMode('quiz_open')
@@ -918,11 +1013,30 @@ function App() {
     }
   }
 
-  const openQuiz = () => fetchQuiz(askedQuestions)
+  const openQuiz = () => {
+    playerRef.current?.pauseVideo?.()
+    fetchQuiz(askedQuestions)
+  }
 
   const submitQuiz = () => {
     if (selectedOption === null) return
     setMode('quiz_feedback')
+    const isCorrect = selectedOption === currentQuiz.correctIndex
+    if (isCorrect) {
+      const newStreak = consecutiveCorrect + 1
+      if (newStreak >= 2 && quizDifficulty < 3) {
+        setQuizDifficulty(quizDifficulty + 1)
+        setConsecutiveCorrect(0)
+      } else if (newStreak >= 2) {
+        // Already at max difficulty — reset streak silently
+        setConsecutiveCorrect(0)
+      } else {
+        setConsecutiveCorrect(newStreak)
+      }
+    } else {
+      // Wrong answer: difficulty stays, streak resets
+      setConsecutiveCorrect(0)
+    }
   }
 
   const nextQuiz = () => fetchQuiz(askedQuestions)
@@ -1541,9 +1655,11 @@ function App() {
 
                 {mode === 'quiz_feedback' && (
                   <div className="lp-quiz-feedback">
-                    <p>
-                      {selectedOption === currentQuiz.correctIndex ? 'Correct. Nice work.' : 'Not quite. Keep going.'}
-                    </p>
+                    {selectedOption === currentQuiz.correctIndex ? (
+                      <p className="lp-feedback-correct">Correct. Nice work.</p>
+                    ) : (
+                      <p className="lp-feedback-wrong">Not quite. Keep going.</p>
+                    )}
                     <p>{currentQuiz.explanation}</p>
                   </div>
                 )}
