@@ -34,14 +34,15 @@ const loadYouTubeIframeApi = () => {
 
 // ─── AI providers ────────────────────────────────────────────────────────────
 
-const PROVIDERS = { CLAUDE: 'claude', OPENAI: 'openai', GROQ: 'groq', OLLAMA: 'ollama' }
+const PROVIDERS = { CLAUDE: 'claude', OPENAI: 'openai', GROQ: 'groq', OLLAMA: 'ollama', AZURE: 'azure' }
 
-const PROVIDER_CYCLE = [PROVIDERS.CLAUDE, PROVIDERS.OPENAI, PROVIDERS.GROQ, PROVIDERS.OLLAMA]
+const PROVIDER_CYCLE = [PROVIDERS.AZURE, PROVIDERS.CLAUDE, PROVIDERS.OPENAI, PROVIDERS.GROQ, PROVIDERS.OLLAMA]
 const PROVIDER_LABELS = {
   [PROVIDERS.CLAUDE]: '✦ Claude',
   [PROVIDERS.OPENAI]: '⬡ GPT-4o',
   [PROVIDERS.GROQ]:   '⚡ Groq',
   [PROVIDERS.OLLAMA]: '🦙 Ollama',
+  [PROVIDERS.AZURE]:  '☁ Azure',
 }
 
 const buildSystemPrompt = (currentSeconds, quizHistory = [], messages = []) => {
@@ -326,7 +327,7 @@ function App() {
   const [activeTranscriptId, setActiveTranscriptId] = useState(transcriptRows[0]?.id ?? '')
 
   // AI state
-  const [aiProvider, setAiProvider] = useState(PROVIDERS.GROQ)
+  const [aiProvider, setAiProvider] = useState(PROVIDERS.AZURE)
   const [messages, setMessages] = useState([])
   const [isLoading, setIsLoading] = useState(false)
   const [aiError, setAiError] = useState(null)

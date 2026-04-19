@@ -98,6 +98,43 @@ const callProvider = async (provider, messages, systemPrompt, imageDataUrl = nul
     return data.content[0].text
   }
 
+  if (provider === 'azure') {
+    const endpoint = process.env.AZURE_OPENAI_ENDPOINT?.replace(/\/$/, '')
+    const deployment = process.env.AZURE_OPENAI_DEPLOYMENT
+    const apiVersion = process.env.AZURE_OPENAI_API_VERSION || '2024-02-01'
+    const url = `${endpoint}/openai/deployments/${deployment}/chat/completions?api-version=${apiVersion}`
+    const apiMessages = messages.map(({ role, content }, i) => {
+      const isLastUser = role === 'user' && i === messages.length - 1
+      if (imageDataUrl && isLastUser) {
+        return {
+          role,
+          content: [
+            { type: 'image_url', image_url: { url: imageDataUrl } },
+            { type: 'text', text: content },
+          ],
+        }
+      }
+      return { role, content }
+    })
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'api-key': process.env.AZURE_OPENAI_API_KEY,
+      },
+      body: JSON.stringify({
+        max_tokens: 512,
+        messages: [{ role: 'system', content: systemPrompt }, ...apiMessages],
+      }),
+    })
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}))
+      throw new Error(err?.error?.message ?? `Azure OpenAI error ${res.status}`)
+    }
+    const data = await res.json()
+    return data.choices[0].message.content
+  }
+
   if (provider === 'openai') {
     const apiMessages = messages.map(({ role, content }, i) => {
       const isLastUser = role === 'user' && i === messages.length - 1

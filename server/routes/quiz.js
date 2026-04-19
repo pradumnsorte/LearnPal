@@ -86,6 +86,31 @@ const callQuizProvider = async (provider, prompt) => {
     return extractJSON(data.content[0].text)
   }
 
+  if (provider === 'azure') {
+    const endpoint = process.env.AZURE_OPENAI_ENDPOINT?.replace(/\/$/, '')
+    const deployment = process.env.AZURE_OPENAI_DEPLOYMENT
+    const apiVersion = process.env.AZURE_OPENAI_API_VERSION || '2024-02-01'
+    const url = `${endpoint}/openai/deployments/${deployment}/chat/completions?api-version=${apiVersion}`
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'api-key': process.env.AZURE_OPENAI_API_KEY,
+      },
+      body: JSON.stringify({
+        max_tokens: 1024,
+        response_format: { type: 'json_object' },
+        messages: [{ role: 'user', content: prompt }],
+      }),
+    })
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}))
+      throw new Error(err?.error?.message ?? `Azure OpenAI error ${res.status}`)
+    }
+    const data = await res.json()
+    return extractJSON(data.choices[0].message.content)
+  }
+
   if (provider === 'openai') {
     const res = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
