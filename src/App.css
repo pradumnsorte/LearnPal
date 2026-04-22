@@ -1,3 +1,30 @@
+/* ── Shared button primitives ─────────────────────────────────────────────── */
+
+.button-primary,
+.button-secondary {
+  align-items: center;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  display: inline-flex;
+  font-family: var(--ff-ui);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semibold);
+  height: 32px;
+  justify-content: center;
+  min-width: 80px;
+  padding: 0 16px;
+  transition: opacity 0.15s ease, background-color 0.15s ease;
+  white-space: nowrap;
+}
+
+.button-primary            { background: #0336ff; color: #ffffff; }
+.button-primary:hover      { opacity: 0.88; }
+.button-secondary          { background: #e7e8e9; color: #121a3e; }
+.button-secondary:hover    { background: #d9dadb; }
+.button-primary:disabled,
+.button-secondary:disabled { cursor: not-allowed; opacity: 0.5; }
+
 .lp-shell {
   background: #ffffff;
   border: 1px solid #c3c3c3;
@@ -44,7 +71,7 @@
 .lp-app-layout {
   display: grid;
   flex: 1;
-  grid-template-columns: 52px 1fr 463px;
+  grid-template-columns: 52px 1fr var(--right-col-w);
   grid-template-rows: 1fr;
   min-height: 0;
   overflow: hidden;
@@ -218,7 +245,7 @@
      Column = 100vw minus left-nav (52px) minus chat (463px) minus borders (~5px). */
   background: #444e76;
   display: flex;
-  height: calc((100vw - 520px) * 9 / 16);
+  height: var(--player-h);
   justify-content: center;
   overflow: hidden;
   position: relative;
@@ -227,7 +254,7 @@
 
 .lp-player-compact .lp-player-stage {
   /* ~58% of natural height — proportional shrink, not a collapse */
-  height: calc((100vw - 520px) * 9 / 16 * 0.58);
+  height: var(--compact-player-h);
 }
 
 .lp-player-stage iframe {
@@ -578,15 +605,24 @@
   font-family: var(--ff-ui);
   font-size: var(--fs-sm);
   font-weight: var(--fw-semibold);
-  padding: 8px 16px;
+  height: 32px;
+  min-width: 80px;
+  padding: 0 16px;
   white-space: nowrap;
 }
+
+.lp-selection-actions button:hover,
+.lp-quiz-actions button:hover,
+.lp-feature-head button:hover { opacity: 0.88; }
 
 .lp-selection-actions .lp-secondary,
 .lp-quiz-actions .lp-secondary {
   background: #e7e8e9;
   color: #121a3e;
 }
+
+.lp-selection-actions .lp-secondary:hover,
+.lp-quiz-actions .lp-secondary:hover { background: #d9dadb; opacity: 1; }
 
 .lp-feature-row {
   background: #ffffff;
@@ -930,6 +966,78 @@
   padding: 4px 16px;
 }
 
+/* Markdown-rendered assistant bubble — wrapper is the bubble */
+.lp-flow-assistant--md {
+  background: #ffffff;
+  border: 1px solid #c3c3c3;
+  border-radius: 12px 12px 12px 0;
+  color: #121a3e;
+  font-family: var(--ff-ui);
+  font-size: var(--fs-base);
+  font-weight: var(--fw-regular);
+  line-height: var(--lh-normal);
+  padding: 10px 16px;
+}
+
+.lp-flow-assistant--md p {
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  margin: 0 0 6px;
+  padding: 0;
+}
+
+.lp-flow-assistant--md p:last-child {
+  margin-bottom: 0;
+}
+
+.lp-flow-assistant--md strong {
+  font-weight: var(--fw-semibold);
+}
+
+.lp-flow-assistant--md ul,
+.lp-flow-assistant--md ol {
+  margin: 4px 0 6px;
+  padding-left: 20px;
+}
+
+.lp-flow-assistant--md li {
+  margin-bottom: 4px;
+}
+
+.lp-flow-assistant--md li:last-child {
+  margin-bottom: 0;
+}
+
+.lp-flow-assistant--md h1,
+.lp-flow-assistant--md h2,
+.lp-flow-assistant--md h3 {
+  font-size: var(--fs-md);
+  font-weight: var(--fw-semibold);
+  margin: 0 0 6px;
+}
+
+.lp-flow-assistant--md code {
+  background: #f0f2f8;
+  border-radius: 4px;
+  font-family: ui-monospace, monospace;
+  font-size: var(--fs-xs);
+  padding: 2px 5px;
+}
+
+.lp-flow-assistant--md pre {
+  background: #f0f2f8;
+  border-radius: 8px;
+  margin: 6px 0;
+  overflow-x: auto;
+  padding: 10px 12px;
+}
+
+.lp-flow-assistant--md pre code {
+  background: transparent;
+  padding: 0;
+}
+
 .lp-chat-bottom {
   background: #ffffff;
   border-top: 1px solid #c3c3c3;
@@ -1122,27 +1230,86 @@
 }
 
 .lp-quiz-feedback {
-  background: #e4effe;
-  margin-top: 14px;
-  padding: 12px;
+  border-radius: 8px;
+  border: 1px solid #e0e2ea;
+  margin-top: 16px;
+  overflow: hidden;
 }
 
-.lp-quiz-feedback p {
-  margin: 0;
+.lp-feedback-result {
+  align-items: center;
+  display: flex;
+  gap: 10px;
+  padding: 10px 14px;
 }
 
-.lp-quiz-feedback p + p {
-  margin-top: 6px;
+.lp-feedback-result--correct {
+  background: #f0fdf4;
+  border-bottom: 1px solid #bbf7d0;
 }
 
-.lp-feedback-correct {
+.lp-feedback-result--wrong {
+  background: #fff1f2;
+  border-bottom: 1px solid #fecdd3;
+}
+
+.lp-feedback-icon {
+  align-items: center;
+  border-radius: 50%;
+  display: flex;
+  flex-shrink: 0;
+  font-size: 12px;
+  font-weight: var(--fw-bold);
+  height: 22px;
+  justify-content: center;
+  width: 22px;
+}
+
+.lp-feedback-result--correct .lp-feedback-icon {
+  background: #15803d;
+  color: #fff;
+}
+
+.lp-feedback-result--wrong .lp-feedback-icon {
+  background: #b91c1c;
+  color: #fff;
+}
+
+.lp-feedback-label {
+  color: #121a3e;
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-medium);
+  line-height: var(--lh-snug);
+}
+
+.lp-feedback-result--correct .lp-feedback-label {
   color: #15803d;
-  font-weight: var(--fw-medium);
 }
 
-.lp-feedback-wrong {
+.lp-feedback-result--wrong .lp-feedback-label {
   color: #b91c1c;
-  font-weight: var(--fw-medium);
+}
+
+.lp-feedback-explanation {
+  background: #ffffff;
+  padding: 12px 14px;
+}
+
+.lp-feedback-explanation-label {
+  color: #6b7280;
+  display: block;
+  font-size: var(--fs-2xs);
+  font-weight: var(--fw-semibold);
+  letter-spacing: 0.05em;
+  margin-bottom: 6px;
+  text-transform: uppercase;
+}
+
+.lp-feedback-explanation p {
+  color: #121a3e;
+  font-size: var(--fs-sm);
+  line-height: var(--lh-normal);
+  margin: 0;
 }
 
 .lp-quiz-actions {
@@ -1309,19 +1476,13 @@
 
 @media (max-width: 1280px) {
   :root {
-    --compact-player-h: calc((100vw - 57px) * 9 / 16 * 0.58);
+    --right-col-w:      0px;
+    --player-h:         min(calc((100vw - 52px) * 9 / 16), 60vh);
+    --compact-player-h: min(calc((100vw - 52px) * 9 / 16 * 0.58), 313px);
   }
 
   .lp-app-layout {
     grid-template-columns: 52px 1fr;
-  }
-
-  .lp-player-stage {
-    height: calc((100vw - 57px) * 9 / 16);
-  }
-
-  .lp-player-compact .lp-player-stage {
-    height: calc((100vw - 57px) * 9 / 16 * 0.58);
   }
 
   .lp-chat-column {

@@ -7,8 +7,11 @@
   --ff-brand: 'Ubuntu', sans-serif;  /* logo only */
   --ff-ui:    'Inter',  sans-serif;  /* all UI text */
 
-  /* Sticky layer offsets — compact player height per breakpoint */
-  --compact-player-h: calc((100vw - 520px) * 9 / 16 * 0.58);
+  /* Fluid layout — right column scales with viewport, capped at 560px */
+  --right-col-w:      clamp(380px, 32vw, 560px);
+  /* Player height derived from viewport width — app fills 100vw with no max-width cap */
+  --player-h:         min(calc((100vw - 52px - var(--right-col-w)) * 9 / 16), 60vh);
+  --compact-player-h: min(calc((100vw - 52px - var(--right-col-w)) * 9 / 16 * 0.58), 313px);
   --feature-row-h: 100px;   /* approx card height in 2-col layout */
 
   /* Type scale — 8 steps, base 14 px */
@@ -53,7 +56,5 @@ body {
 
 #root {
   height: 100vh;
-  margin: 0 auto;
-  max-width: 1512px;
   width: 100%;
 }

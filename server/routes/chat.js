@@ -18,7 +18,7 @@ const callProvider = async (provider, messages, systemPrompt, imageDataUrl = nul
       },
       body: JSON.stringify({
         model: 'llama-3.3-70b-versatile',
-        max_tokens: 512,
+        max_tokens: 1024,
         messages: [{ role: 'system', content: systemPrompt }, ...groqMessages],
       }),
     })
@@ -50,7 +50,7 @@ const callProvider = async (provider, messages, systemPrompt, imageDataUrl = nul
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         model: ollamaModel,
-        max_tokens: 512,
+        max_tokens: 1024,
         messages: [{ role: 'system', content: systemPrompt }, ...ollamaMessages],
       }),
     })
@@ -85,7 +85,7 @@ const callProvider = async (provider, messages, systemPrompt, imageDataUrl = nul
       },
       body: JSON.stringify({
         model: 'claude-sonnet-4-6',
-        max_tokens: 512,
+        max_tokens: 1024,
         system: systemPrompt,
         messages: apiMessages,
       }),
@@ -98,9 +98,11 @@ const callProvider = async (provider, messages, systemPrompt, imageDataUrl = nul
     return data.content[0].text
   }
 
-  if (provider === 'azure') {
+  if (provider === 'azure' || provider === 'azure-54') {
     const endpoint = process.env.AZURE_OPENAI_ENDPOINT?.replace(/\/$/, '')
-    const deployment = process.env.AZURE_OPENAI_DEPLOYMENT
+    const deployment = provider === 'azure-54'
+      ? process.env.AZURE_OPENAI_DEPLOYMENT_54
+      : process.env.AZURE_OPENAI_DEPLOYMENT
     const apiVersion = process.env.AZURE_OPENAI_API_VERSION || '2024-02-01'
     const url = `${endpoint}/openai/deployments/${deployment}/chat/completions?api-version=${apiVersion}`
     const apiMessages = messages.map(({ role, content }, i) => {
@@ -123,7 +125,7 @@ const callProvider = async (provider, messages, systemPrompt, imageDataUrl = nul
         'api-key': process.env.AZURE_OPENAI_API_KEY,
       },
       body: JSON.stringify({
-        max_tokens: 512,
+        ...(provider === 'azure-54' ? { max_completion_tokens: 1024 } : { max_tokens: 1024 }),
         messages: [{ role: 'system', content: systemPrompt }, ...apiMessages],
       }),
     })
@@ -157,7 +159,7 @@ const callProvider = async (provider, messages, systemPrompt, imageDataUrl = nul
       },
       body: JSON.stringify({
         model: 'gpt-4o',
-        max_tokens: 512,
+        max_tokens: 1024,
         messages: [{ role: 'system', content: systemPrompt }, ...apiMessages],
       }),
     })

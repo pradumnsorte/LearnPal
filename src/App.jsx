@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import ReactMarkdown from 'react-markdown'
 import './App.css'
 import transcriptRows from './data/transcript.json'
 import brandIcon from './assets/brand-icon.svg'
@@ -34,15 +35,13 @@ const loadYouTubeIframeApi = () => {
 
 // ─── AI providers ────────────────────────────────────────────────────────────
 
-const PROVIDERS = { CLAUDE: 'claude', OPENAI: 'openai', GROQ: 'groq', OLLAMA: 'ollama', AZURE: 'azure' }
-
-const PROVIDER_CYCLE = [PROVIDERS.AZURE, PROVIDERS.CLAUDE, PROVIDERS.OPENAI, PROVIDERS.GROQ, PROVIDERS.OLLAMA]
+const PROVIDERS = { GROQ: 'groq', AZURE: 'azure', AZURE_54: 'azure-54', OLLAMA: 'ollama' }
+const PROVIDER_CYCLE = [PROVIDERS.AZURE, PROVIDERS.AZURE_54, PROVIDERS.GROQ, PROVIDERS.OLLAMA]
 const PROVIDER_LABELS = {
-  [PROVIDERS.CLAUDE]: '✦ Claude',
-  [PROVIDERS.OPENAI]: '⬡ GPT-4o',
-  [PROVIDERS.GROQ]:   '⚡ Groq',
-  [PROVIDERS.OLLAMA]: '🦙 Ollama',
-  [PROVIDERS.AZURE]:  '☁ Azure',
+  [PROVIDERS.AZURE]:    '⬡ GPT-4o mini',
+  [PROVIDERS.AZURE_54]: '⬡ GPT-5.4 mini',
+  [PROVIDERS.GROQ]:     '⚡ Groq',
+  [PROVIDERS.OLLAMA]:   '🦙 Ollama',
 }
 
 const buildSystemPrompt = (currentSeconds, quizHistory = [], messages = []) => {
@@ -77,13 +76,18 @@ const buildSystemPrompt = (currentSeconds, quizHistory = [], messages = []) => {
 
   return `You are Pal, a friendly learning assistant embedded in LearnPal, a video learning app.
 
-The user is watching: "The Essential Main Ideas of Neural Networks" by StatQuest.
-Current video position: ${timeStr}
+The user is currently learning about neural networks (video: "The Essential Main Ideas of Neural Networks" by StatQuest, position: ${timeStr}).
 
-Recent transcript context:
+The following topics are being covered at this moment — use this as background knowledge to stay relevant, not as a source to cite:
 ${recentContext || 'Video just started.'}
 ${sessionContext}
-Help the user understand the video. Be concise (under 150 words unless asked for more), clear, and educational. Use simple language and real-world examples when helpful. Use the session context above to personalise your responses — if the user got a quiz question wrong, address that gap; if they asked about a visual region, connect your answer to what they saw.`
+You are a subject-matter expert in machine learning and neural networks. Explain every concept from first principles, with full depth — don't summarise, don't simplify away important detail, and never truncate. Go beyond the immediate question: bring in related concepts, real-world applications, intuitive analogies, and historical context where they add value. Your goal is to leave the user with a genuinely deeper understanding than any single video could provide.
+
+Never reference the video, transcript, or presenter as a source. Do not say "the transcript says", "in the video", "the presenter mentions", "as stated", or anything similar. You simply know this material — explain it that way. The background topics above are only to help you stay contextually relevant; they are not a script to follow or cite.
+
+Use the session context to personalise your responses — if the user got a quiz question wrong, directly address that misconception with a clear, corrective explanation.
+
+Format your responses using markdown: use **bold** for key terms, bullet points or numbered lists for multi-part answers, and short paragraphs. Keep it conversational and clear — like a brilliant tutor who genuinely loves the subject.`
 }
 
 // All AI chat calls go through the backend — provider dispatch and key management
@@ -1491,7 +1495,9 @@ function App() {
                     </div>
                   ) : (
                     <div key={i} className="lp-flow-assistant">
-                      <p>{msg.content}</p>
+                      <div className="lp-flow-assistant--md">
+                        <ReactMarkdown>{msg.content}</ReactMarkdown>
+                      </div>
                     </div>
                   )
                 )}
@@ -1644,12 +1650,21 @@ function App() {
 
                 {mode === 'quiz_feedback' && (
                   <div className="lp-quiz-feedback">
-                    {selectedOption === currentQuiz.correctIndex ? (
-                      <p className="lp-feedback-correct">Correct. Nice work.</p>
-                    ) : (
-                      <p className="lp-feedback-wrong">Not quite. Keep going.</p>
-                    )}
-                    <p>{currentQuiz.explanation}</p>
+                    <div className={`lp-feedback-result ${selectedOption === currentQuiz.correctIndex ? 'lp-feedback-result--correct' : 'lp-feedback-result--wrong'}`}>
+                      <span className="lp-feedback-icon">
+                        {selectedOption === currentQuiz.correctIndex ? '✓' : '✗'}
+                      </span>
+                      <span className="lp-feedback-label">
+                        {selectedOption === currentQuiz.correctIndex ? 'Correct' : 'Incorrect — the right answer is: '}
+                        {selectedOption !== currentQuiz.correctIndex && (
+                          <strong>{currentQuiz.options[currentQuiz.correctIndex]}</strong>
+                        )}
+                      </span>
+                    </div>
+                    <div className="lp-feedback-explanation">
+                      <span className="lp-feedback-explanation-label">Explanation</span>
+                      <p>{currentQuiz.explanation}</p>
+                    </div>
                   </div>
                 )}
               </>

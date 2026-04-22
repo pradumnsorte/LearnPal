@@ -86,9 +86,9 @@ const callQuizProvider = async (provider, prompt) => {
     return extractJSON(data.content[0].text)
   }
 
-  if (provider === 'azure') {
+  if (provider === 'azure' || provider === 'azure-54') {
     const endpoint = process.env.AZURE_OPENAI_ENDPOINT?.replace(/\/$/, '')
-    const deployment = process.env.AZURE_OPENAI_DEPLOYMENT
+    const deployment = provider === 'azure-54' ? process.env.AZURE_OPENAI_DEPLOYMENT_54 : process.env.AZURE_OPENAI_DEPLOYMENT
     const apiVersion = process.env.AZURE_OPENAI_API_VERSION || '2024-02-01'
     const url = `${endpoint}/openai/deployments/${deployment}/chat/completions?api-version=${apiVersion}`
     const res = await fetch(url, {
@@ -98,7 +98,7 @@ const callQuizProvider = async (provider, prompt) => {
         'api-key': process.env.AZURE_OPENAI_API_KEY,
       },
       body: JSON.stringify({
-        max_tokens: 1024,
+        ...(provider === 'azure-54' ? { max_completion_tokens: 1024 } : { max_tokens: 1024 }),
         response_format: { type: 'json_object' },
         messages: [{ role: 'user', content: prompt }],
       }),
