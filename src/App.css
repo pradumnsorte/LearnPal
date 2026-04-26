@@ -797,16 +797,27 @@
 }
 
 .lp-provider-toggle {
+  align-items: center;
   background: rgba(255, 255, 255, 0.2);
   border: 1px solid rgba(255, 255, 255, 0.5);
   border-radius: 20px;
   color: #ffffff;
   cursor: pointer;
+  display: inline-flex;
   font-family: var(--ff-ui);
   font-size: var(--fs-2xs);
   font-weight: var(--fw-semibold);
+  gap: 6px;
   padding: 5px 14px;
   transition: background 0.2s ease;
+}
+
+.lp-provider-logo {
+  border-radius: 2px;
+  flex-shrink: 0;
+  height: 14px;
+  object-fit: contain;
+  width: 14px;
 }
 
 .lp-provider-toggle:hover {

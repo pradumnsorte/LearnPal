@@ -4,6 +4,7 @@ import './App.css'
 import transcriptRows from './data/transcript.json'
 import brandIcon from './assets/brand-icon.svg'
 import palCharacter from './assets/pal-character.svg'
+import chatgptLogo from './assets/Chat GPT logo.png'
 
 const VIDEO_ID = 'CqOfi41LfDw'
 const PLAYLIST_ID = 'PLblh5JKOoLUIxGDQs4LFFD--41Vzf-ME1'
@@ -38,10 +39,10 @@ const loadYouTubeIframeApi = () => {
 const PROVIDERS = { GROQ: 'groq', AZURE: 'azure', AZURE_54: 'azure-54', OLLAMA: 'ollama' }
 const PROVIDER_CYCLE = [PROVIDERS.AZURE, PROVIDERS.AZURE_54, PROVIDERS.GROQ, PROVIDERS.OLLAMA]
 const PROVIDER_LABELS = {
-  [PROVIDERS.AZURE]:    '⬡ GPT-4o mini',
-  [PROVIDERS.AZURE_54]: '⬡ GPT-5.4 mini',
-  [PROVIDERS.GROQ]:     '⚡ Groq',
-  [PROVIDERS.OLLAMA]:   '🦙 Ollama',
+  [PROVIDERS.AZURE]:    { label: 'GPT-4o mini', logo: true },
+  [PROVIDERS.AZURE_54]: { label: 'GPT-5.4 mini', logo: true },
+  [PROVIDERS.GROQ]:     { label: '⚡ Groq', logo: false },
+  [PROVIDERS.OLLAMA]:   { label: '🦙 Ollama', logo: false },
 }
 
 const buildSystemPrompt = (currentSeconds, quizHistory = [], messages = []) => {
@@ -1447,7 +1448,10 @@ function App() {
               }
               title="Switch AI provider"
             >
-              {PROVIDER_LABELS[aiProvider]}
+              {PROVIDER_LABELS[aiProvider].logo && (
+                <img src={chatgptLogo} alt="" className="lp-provider-logo" />
+              )}
+              {PROVIDER_LABELS[aiProvider].label}
             </button>
           </div>
 
