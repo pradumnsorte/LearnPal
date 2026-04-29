@@ -177,7 +177,7 @@ const callProvider = async (provider, messages, systemPrompt, imageDataUrl = nul
 // ── Route ─────────────────────────────────────────────────────────────────────
 
 router.post('/', async (req, res) => {
-  const { sessionId, provider, messages, systemPrompt, imageDataUrl } = req.body
+  const { sessionId, provider, messages, systemPrompt, imageDataUrl, source } = req.body
 
   if (!provider || !messages || !systemPrompt) {
     return res.status(400).json({ error: 'provider, messages, and systemPrompt are required' })
@@ -191,12 +191,12 @@ router.post('/', async (req, res) => {
       const lastUserMessage = [...messages].reverse().find((m) => m.role === 'user')
       if (lastUserMessage) {
         db.prepare(
-          'INSERT INTO messages (session_id, role, content, provider) VALUES (?, ?, ?, ?)'
-        ).run(sessionId, 'user', lastUserMessage.content, provider)
+          'INSERT INTO messages (session_id, role, content, provider, source) VALUES (?, ?, ?, ?, ?)'
+        ).run(sessionId, 'user', lastUserMessage.content, provider, source ?? 'chat')
       }
       db.prepare(
-        'INSERT INTO messages (session_id, role, content, provider) VALUES (?, ?, ?, ?)'
-      ).run(sessionId, 'assistant', reply, provider)
+        'INSERT INTO messages (session_id, role, content, provider, source) VALUES (?, ?, ?, ?, ?)'
+      ).run(sessionId, 'assistant', reply, provider, source ?? 'chat')
     }
 
     res.json({ reply })

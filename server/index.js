@@ -21,6 +21,27 @@ app.use('/api/snaps',    snapsRouter)
 app.use('/api/events',   eventsRouter)
 app.use('/api/export',   exportRouter)
 
+// ── Startup env-var sanity check ─────────────────────────────────────────────
+// Warn loudly when a provider's keys are missing so misconfigured deployments
+// fail fast instead of returning cryptic 404s mid-session.
+const checkEnv = () => {
+  const groups = {
+    Azure: ['AZURE_OPENAI_ENDPOINT', 'AZURE_OPENAI_API_KEY', 'AZURE_OPENAI_DEPLOYMENT', 'AZURE_OPENAI_DEPLOYMENT_54'],
+    Groq:    ['GROQ_API_KEY'],
+    Claude:  ['ANTHROPIC_API_KEY'],
+    OpenAI:  ['OPENAI_API_KEY'],
+  }
+  for (const [name, vars] of Object.entries(groups)) {
+    const missing = vars.filter((v) => !process.env[v])
+    if (missing.length === vars.length) {
+      console.warn(`⚠  ${name} provider disabled — env vars not set: ${missing.join(', ')}`)
+    } else if (missing.length > 0) {
+      console.warn(`⚠  ${name} provider partially configured — missing: ${missing.join(', ')}`)
+    }
+  }
+}
+checkEnv()
+
 app.listen(PORT, () => {
   console.log(`LearnPal server running on http://localhost:${PORT}`)
 })

@@ -691,6 +691,59 @@
   padding: 4px 8px;
 }
 
+/* ── Question history pills ──────────────────────────────────────────────── */
+
+.lp-quiz-modal-top {
+  align-items: flex-start;
+  display: flex;
+  gap: 14px;
+  justify-content: space-between;
+}
+
+.lp-quiz-modal-top h3 {
+  flex-shrink: 0;
+  margin: 0;
+}
+
+.lp-quiz-pills {
+  display: flex;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.lp-quiz-pill {
+  align-items: center;
+  background: transparent;
+  border: 1.5px solid transparent;
+  cursor: pointer;
+  display: inline-flex;
+  font-family: var(--ff-ui);
+  font-size: var(--fs-2xs);
+  font-weight: var(--fw-semibold);
+  height: 22px;
+  justify-content: center;
+  line-height: 1;
+  min-width: 22px;
+  padding: 0 5px;
+  transition: opacity 0.14s ease;
+}
+
+.lp-quiz-pill:hover {
+  opacity: 0.75;
+}
+
+.lp-quiz-pill-correct   { background: #dcfce7; color: #166534; }
+.lp-quiz-pill-wrong     { background: #fee2e2; color: #991b1b; }
+.lp-quiz-pill-unanswered { background: #fff6de; color: #92400e; }
+
+.lp-quiz-pill-active {
+  border-color: #0336ff;
+  box-shadow: 0 0 0 1px rgba(3, 54, 255, 0.25);
+}
+
+/* ── Transcripts ─────────────────────────────────────────────────────────── */
+
 .lp-transcripts {
   display: flex;
   flex-direction: column;
@@ -1194,6 +1247,12 @@
   margin: 16px 0;
 }
 
+.lp-quiz-qnum {
+  color: #0336ff;
+  font-weight: var(--fw-bold);
+  margin-right: 4px;
+}
+
 .lp-quiz-options {
   display: grid;
   gap: 10px;
@@ -1333,6 +1392,22 @@
 .lp-quiz-actions button:disabled {
   cursor: not-allowed;
   opacity: 0.5;
+}
+
+.lp-explain-btn {
+  background: #f0f2ff !important;
+  border: 1px solid #c7ceff !important;
+  color: #0336ff !important;
+}
+
+.lp-explain-btn:hover {
+  background: #e4e8ff !important;
+  opacity: 1 !important;
+}
+
+/* Pills inside the Quiz me now feature card */
+.lp-feature-card .lp-quiz-pills {
+  margin-top: 6px;
 }
 
 /* ── Chat message utilities ───────────────────────────────────────────────── */

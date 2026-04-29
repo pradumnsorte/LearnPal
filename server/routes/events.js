@@ -5,15 +5,17 @@ const router = Router()
 
 // Log a behaviour event
 router.post('/', (req, res) => {
-  const { sessionId, eventType, playbackSeconds } = req.body
+  const { sessionId, eventType, playbackSeconds, meta } = req.body
 
   if (!sessionId || !eventType) {
     return res.status(400).json({ error: 'sessionId and eventType are required' })
   }
 
+  const metaStr = meta == null ? null : (typeof meta === 'string' ? meta : JSON.stringify(meta))
+
   const result = db.prepare(
-    'INSERT INTO events (session_id, event_type, playback_seconds) VALUES (?, ?, ?)'
-  ).run(sessionId, eventType, playbackSeconds ?? null)
+    'INSERT INTO events (session_id, event_type, playback_seconds, meta) VALUES (?, ?, ?, ?)'
+  ).run(sessionId, eventType, playbackSeconds ?? null, metaStr)
 
   res.json({ id: result.lastInsertRowid })
 })

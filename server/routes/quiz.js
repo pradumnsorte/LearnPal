@@ -156,7 +156,8 @@ router.post('/generate', async (req, res) => {
 // ── Save a completed attempt ──────────────────────────────────────────────────
 
 router.post('/submit', (req, res) => {
-  const { sessionId, question, options, correctIndex, selectedIndex, isCorrect, difficulty, provider } = req.body
+  const { sessionId, question, options, correctIndex, selectedIndex, isCorrect,
+          difficulty, provider, timeToAnswerSeconds } = req.body
 
   if (!sessionId || !question) {
     return res.status(400).json({ error: 'sessionId and question are required' })
@@ -164,8 +165,9 @@ router.post('/submit', (req, res) => {
 
   const result = db.prepare(`
     INSERT INTO quiz_attempts
-      (session_id, question, options, correct_index, selected_index, is_correct, difficulty, provider)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      (session_id, question, options, correct_index, selected_index, is_correct,
+       difficulty, provider, time_to_answer_seconds)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     sessionId,
     question,
@@ -175,6 +177,7 @@ router.post('/submit', (req, res) => {
     isCorrect ? 1 : 0,
     difficulty ?? 1,
     provider ?? null,
+    timeToAnswerSeconds ?? null,
   )
 
   res.json({ id: result.lastInsertRowid })

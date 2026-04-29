@@ -94,12 +94,12 @@ Format your responses using markdown: use **bold** for key terms, bullet points 
 // All AI chat calls go through the backend — provider dispatch and key management
 // happen server-side. sessionId is optional; when present the server saves the
 // conversation to the database.
-const callAI = async (provider, messages, currentSeconds, imageDataUrl = null, sessionId = null, quizHistory = []) => {
+const callAI = async (provider, messages, currentSeconds, imageDataUrl = null, sessionId = null, quizHistory = [], source = 'chat') => {
   const systemPrompt = buildSystemPrompt(currentSeconds, quizHistory, messages)
   const res = await fetch('/api/chat', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ provider, messages, systemPrompt, imageDataUrl, sessionId }),
+    body: JSON.stringify({ provider, messages, systemPrompt, imageDataUrl, sessionId, source }),
   })
   if (!res.ok) {
     const err = await res.json().catch(() => ({}))
@@ -303,6 +303,7 @@ function App() {
   const transcriptsHeaderRef = useRef(null)
   const userScrolledRef = useRef(false)            // true while user is manually scrolling transcript
   const userScrollTimerRef = useRef(null)          // resets userScrolledRef after 4s of inactivity
+  const quizQuestionShownAtRef = useRef(null)      // ms timestamp when the current quiz question landed
   const firstInteractionLoggedRef = useRef(false)  // ensures first_interaction is logged only once
   const logEventRef = useRef(null)                  // always points to latest logEvent
 
@@ -323,6 +324,7 @@ function App() {
   const [currentQuiz, setCurrentQuiz] = useState(null)
   const [quizLoading, setQuizLoading] = useState(false)
   const [quizError, setQuizError] = useState(null)
+  const [reviewIndex, setReviewIndex] = useState(null)   // null = current question, number = reviewing past entry
   const [selectedOption, setSelectedOption] = useState(null)
   const [askedQuestions, setAskedQuestions] = useState([])
   const [quizDifficulty, setQuizDifficulty] = useState(1)
@@ -332,7 +334,7 @@ function App() {
   const [activeTranscriptId, setActiveTranscriptId] = useState(transcriptRows[0]?.id ?? '')
 
   // AI state
-  const [aiProvider, setAiProvider] = useState(PROVIDERS.AZURE)
+  const [aiProvider, setAiProvider] = useState(PROVIDERS.AZURE_54)
   const [messages, setMessages] = useState([])
   const [isLoading, setIsLoading] = useState(false)
   const [aiError, setAiError] = useState(null)
@@ -358,7 +360,7 @@ function App() {
   const [playerKey, setPlayerKey] = useState(0)  // increment to reinit player with new controls value
 
   // Derived
-  const isQuizOpen = mode === 'quiz_open' || mode === 'quiz_feedback' || mode === 'quiz_loading'
+  const isQuizOpen = mode === 'quiz_open' || mode === 'quiz_feedback' || mode === 'quiz_loading' || mode === 'quiz_review'
   const isSelectionFlow = mode === 'selection_mode' || mode === 'selection_confirm'
   const seekPercent = duration > 0 ? (currentPlaybackSeconds / duration) * 100 : 0
 
@@ -370,7 +372,7 @@ function App() {
     fetch('/api/sessions', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ videoId: VIDEO_ID, videoTitle: 'The Essential Main Ideas of Neural Networks' }),
+      body: JSON.stringify({ videoId: VIDEO_ID, videoTitle: 'The Essential Main Ideas of Neural Networks', paradigm: 'intermittent' }),
     })
       .then((r) => r.json())
       .then((data) => setSessionId(data.id))
@@ -379,9 +381,9 @@ function App() {
 
   // logEvent — fire-and-forget behaviour tracking. Uses sessionId from closure.
   // sendBeacon is used for session_end so the request survives page unload.
-  const logEvent = useCallback((eventType, playbackSeconds = null) => {
+  const logEvent = useCallback((eventType, playbackSeconds = null, meta = null) => {
     if (!sessionId) return
-    const body = JSON.stringify({ sessionId, eventType, playbackSeconds })
+    const body = JSON.stringify({ sessionId, eventType, playbackSeconds, meta })
     if (eventType === 'session_end') {
       navigator.sendBeacon('/api/events', new Blob([body], { type: 'application/json' }))
     } else {
@@ -403,6 +405,16 @@ function App() {
     }
     window.addEventListener('beforeunload', handleUnload)
     return () => window.removeEventListener('beforeunload', handleUnload)
+  }, [logEvent])
+
+  // Log tab focus / blur — distinguishes "watched but distracted" from "actively engaged"
+  useEffect(() => {
+    const onVisibility = () => {
+      const pos = playerRef.current?.getCurrentTime?.() ?? 0
+      logEvent(document.hidden ? 'tab_blurred' : 'tab_focused', pos)
+    }
+    document.addEventListener('visibilitychange', onVisibility)
+    return () => document.removeEventListener('visibilitychange', onVisibility)
   }, [logEvent])
 
   useEffect(() => {
@@ -600,9 +612,11 @@ function App() {
   const seekRelative = (delta) => {
     const p = playerRef.current
     if (!p) return
-    const t = Math.max(0, (p.getCurrentTime() || 0) + delta)
+    const from = p.getCurrentTime() || 0
+    const t = Math.max(0, from + delta)
     p.seekTo(t, true)
     setCurrentPlaybackSeconds(t)
+    logEvent('video_seek', from, { to_seconds: t, delta, source: 'button' })
   }
 
   const handleStageMouseMove = () => {
@@ -623,8 +637,12 @@ function App() {
     if (!rect || !duration) return
     const ratio = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width))
     const t = ratio * duration
+    const from = playerRef.current?.getCurrentTime?.() ?? 0
     setCurrentPlaybackSeconds(t)
     playerRef.current?.seekTo(t, true)
+    if (Math.abs(t - from) > 1.5) {
+      logEvent('video_seek', from, { to_seconds: t, delta: t - from, source: 'scrubber' })
+    }
   }
 
   const handleSeekPointerDown = (e) => {
@@ -686,7 +704,7 @@ function App() {
 
   // snippet: { imageDataUrl, timestampStr, userPrompt } | null
   // When null the message is a plain chat turn.
-  const sendMessage = async (content, snippet = null) => {
+  const sendMessage = async (content, snippet = null, source = null) => {
     const clean = content.trim()
     if (!clean || isLoading) return
 
@@ -704,6 +722,13 @@ function App() {
       logEvent('first_interaction', currentPlaybackSeconds)
     }
 
+    const messageSource = source ?? (snippet ? 'snap_ask' : 'chat')
+    logEvent('chat_message_sent', currentPlaybackSeconds, {
+      char_count: clean.length,
+      has_snippet: !!snippet,
+      source: messageSource,
+    })
+
     try {
       const reply = await callAI(
         aiProvider,
@@ -711,7 +736,8 @@ function App() {
         currentPlaybackSeconds,
         snippet?.imageDataUrl ?? null,
         sessionId,
-        quizHistory
+        quizHistory,
+        messageSource,
       )
       setMessages((prev) => [...prev, { role: 'assistant', content: reply }])
 
@@ -744,6 +770,7 @@ function App() {
   const startSelection = () => {
     // Pause the video so the frame is frozen while the learner draws their selection
     playerRef.current?.pauseVideo?.()
+    logEvent('snap_started', currentPlaybackSeconds)
 
     setSelectionRect(null)
     setDragStart(null)
@@ -766,6 +793,7 @@ function App() {
   }
 
   const cancelSelection = () => {
+    logEvent('snap_cancelled', currentPlaybackSeconds)
     setSelectionRect(null)
     setDragStart(null)
     setDragCurrent(null)
@@ -907,6 +935,7 @@ function App() {
       const q = await generateQuizQuestion(aiProvider, currentPlaybackSeconds, prevQuestions, quizDifficulty)
       setCurrentQuiz(q)
       setAskedQuestions((prev) => [...prev, q.question])
+      quizQuestionShownAtRef.current = Date.now()
       setMode('quiz_open')
     } catch (err) {
       setQuizError(err.message)
@@ -922,6 +951,7 @@ function App() {
       firstInteractionLoggedRef.current = true
       logEvent('first_interaction', currentPlaybackSeconds)
     }
+    logEvent('quiz_started', currentPlaybackSeconds)
     fetchQuiz(askedQuestions)
   }
 
@@ -929,7 +959,18 @@ function App() {
     if (selectedOption === null) return
     setMode('quiz_feedback')
     const isCorrect = selectedOption === currentQuiz.correctIndex
-    setQuizHistory((prev) => [...prev, { question: currentQuiz.question, isCorrect }])
+    const timeToAnswerSeconds = quizQuestionShownAtRef.current
+      ? (Date.now() - quizQuestionShownAtRef.current) / 1000
+      : null
+    quizQuestionShownAtRef.current = null
+    setQuizHistory((prev) => [...prev, {
+      question: currentQuiz.question,
+      options: currentQuiz.options,
+      correctIndex: currentQuiz.correctIndex,
+      explanation: currentQuiz.explanation,
+      selectedIndex: selectedOption,
+      isCorrect,
+    }])
     if (isCorrect) {
       const newStreak = consecutiveCorrect + 1
       if (newStreak >= 2 && quizDifficulty < 3) {
@@ -958,18 +999,41 @@ function App() {
           isCorrect,
           difficulty: quizDifficulty,
           provider: aiProvider,
+          timeToAnswerSeconds,
         }),
       }).catch(() => {})
     }
   }
 
-  const nextQuiz = () => fetchQuiz(askedQuestions)
+  const nextQuiz = () => { setReviewIndex(null); fetchQuiz(askedQuestions) }
 
   const closeQuiz = () => {
+    if ((mode === 'quiz_open' || mode === 'quiz_loading') && currentQuiz) {
+      logEvent('quiz_skipped', currentPlaybackSeconds)
+    }
+    quizQuestionShownAtRef.current = null
     setSelectedOption(null)
     setCurrentQuiz(null)
     setQuizError(null)
+    setReviewIndex(null)
     setMode('default_viewing')
+  }
+
+  const openReview = (index) => {
+    logEvent('quiz_review_opened', currentPlaybackSeconds, { question_index: index, source: 'feature_card' })
+    setReviewIndex(index)
+    setMode('quiz_review')
+  }
+
+  const explainInDetail = () => {
+    if (!currentQuiz) return
+    const wasCorrect = selectedOption === currentQuiz.correctIndex
+    const prompt = wasCorrect
+      ? `I just answered a quiz question correctly: "${currentQuiz.question}". Can you explain this concept in more depth with examples?`
+      : `I got a quiz question wrong. The question was: "${currentQuiz.question}". I chose "${currentQuiz.options[selectedOption]}" but the correct answer is "${currentQuiz.options[currentQuiz.correctIndex]}". Can you explain why in more detail?`
+    logEvent('quiz_explained', currentPlaybackSeconds)
+    closeQuiz()
+    sendMessage(prompt, null, 'quiz_explain')
   }
 
   // ── Researcher controls ───────────────────────────────────────────────────
@@ -1010,7 +1074,7 @@ function App() {
     fetch('/api/sessions', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ videoId: VIDEO_ID, videoTitle: 'The Essential Main Ideas of Neural Networks' }),
+      body: JSON.stringify({ videoId: VIDEO_ID, videoTitle: 'The Essential Main Ideas of Neural Networks', paradigm: 'intermittent' }),
     })
       .then((r) => r.json())
       .then((data) => setSessionId(data.id))
@@ -1020,6 +1084,7 @@ function App() {
   // ── Transcript ────────────────────────────────────────────────────────────
 
   const jumpToTranscriptTime = (row) => {
+    logEvent('transcript_clicked', currentPlaybackSeconds, { to_seconds: row.seconds })
     setActiveTranscriptId(row.id)
     const player = playerRef.current
     if (player && typeof player.seekTo === 'function') {
@@ -1407,6 +1472,22 @@ function App() {
                 </button>
               </div>
               <p className="lp-tip">ⓘ Pause and test your understanding before you move ahead.</p>
+              {quizHistory.length > 0 && (
+                <div className="lp-quiz-pills" role="list" aria-label="Question history">
+                  {quizHistory.map((entry, i) => (
+                    <button
+                      key={i}
+                      type="button"
+                      role="listitem"
+                      className={`lp-quiz-pill lp-quiz-pill-${entry.isCorrect ? 'correct' : 'wrong'}`}
+                      title={entry.question}
+                      onClick={() => openReview(i)}
+                    >
+                      {i + 1}
+                    </button>
+                  ))}
+                </div>
+              )}
             </article>
           </div>
 
@@ -1443,7 +1524,9 @@ function App() {
               onClick={() =>
                 setAiProvider((p) => {
                   const idx = PROVIDER_CYCLE.indexOf(p)
-                  return PROVIDER_CYCLE[(idx + 1) % PROVIDER_CYCLE.length]
+                  const next = PROVIDER_CYCLE[(idx + 1) % PROVIDER_CYCLE.length]
+                  logEvent('provider_switched', currentPlaybackSeconds, { from: p, to: next })
+                  return next
                 })
               }
               title="Switch AI provider"
@@ -1588,13 +1671,8 @@ function App() {
         <button type="button" className="lp-researcher-reset" onClick={resetSession}>
           Reset
         </button>
-        <a
-          className="lp-researcher-export"
-          href="/api/export"
-          target="_blank"
-          rel="noreferrer"
-        >
-          Export CSV
+        <a className="lp-researcher-export" href="/api/export/all" target="_blank" rel="noreferrer">
+          Export Excel
         </a>
       </div>
 
@@ -1608,7 +1686,45 @@ function App() {
             aria-label="Quick quiz"
             onClick={(e) => e.stopPropagation()}
           >
-            <h3>Quiz me now</h3>
+            <div className="lp-quiz-modal-top">
+              <h3>Quiz me now</h3>
+              {(quizHistory.length > 0 || currentQuiz) && (
+                <div className="lp-quiz-pills" role="list" aria-label="Question history">
+                  {quizHistory.map((entry, i) => (
+                    <button
+                      key={i}
+                      type="button"
+                      role="listitem"
+                      className={`lp-quiz-pill lp-quiz-pill-${entry.isCorrect ? 'correct' : 'wrong'}${reviewIndex === i ? ' lp-quiz-pill-active' : ''}`}
+                      title={entry.question}
+                      onClick={() => {
+                        if (reviewIndex !== i) {
+                          logEvent('quiz_review_opened', currentPlaybackSeconds, { question_index: i, source: 'modal' })
+                        }
+                        setReviewIndex(reviewIndex === i ? null : i)
+                      }}
+                    >
+                      {i + 1}
+                    </button>
+                  ))}
+                  {currentQuiz && (
+                    <button
+                      type="button"
+                      role="listitem"
+                      className={`lp-quiz-pill lp-quiz-pill-active${
+                        mode === 'quiz_feedback'
+                          ? ` lp-quiz-pill-${selectedOption === currentQuiz.correctIndex ? 'correct' : 'wrong'}`
+                          : ' lp-quiz-pill-unanswered'
+                      }`}
+                      title={currentQuiz.question}
+                      onClick={() => setReviewIndex(null)}
+                    >
+                      {quizHistory.length + 1}
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
             <p className="lp-quiz-meta">Generated from what you have watched so far.</p>
 
             {/* Loading state */}
@@ -1628,10 +1744,49 @@ function App() {
               </div>
             )}
 
-            {/* Question */}
-            {currentQuiz && !quizLoading && (
+            {/* Review: a past question selected via pill */}
+            {reviewIndex !== null && quizHistory[reviewIndex] && (() => {
+              const r = quizHistory[reviewIndex]
+              return (
+                <>
+                  <p className="lp-quiz-question">
+                    <span className="lp-quiz-qnum">Q{reviewIndex + 1}.</span> {r.question}
+                  </p>
+                  <div className="lp-quiz-options">
+                    {r.options.map((option, index) => (
+                      <button
+                        key={option}
+                        type="button"
+                        className={`lp-quiz-option${index === r.correctIndex ? ' lp-correct' : ''}${index === r.selectedIndex && index !== r.correctIndex ? ' lp-wrong' : ''}`}
+                        disabled
+                      >
+                        {option}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="lp-quiz-feedback">
+                    <div className={`lp-feedback-result ${r.isCorrect ? 'lp-feedback-result--correct' : 'lp-feedback-result--wrong'}`}>
+                      <span className="lp-feedback-icon">{r.isCorrect ? '✓' : '✗'}</span>
+                      <span className="lp-feedback-label">
+                        {r.isCorrect ? 'Correct' : 'Incorrect — the right answer is: '}
+                        {!r.isCorrect && <strong>{r.options[r.correctIndex]}</strong>}
+                      </span>
+                    </div>
+                    <div className="lp-feedback-explanation">
+                      <span className="lp-feedback-explanation-label">Explanation</span>
+                      <p>{r.explanation}</p>
+                    </div>
+                  </div>
+                </>
+              )
+            })()}
+
+            {/* Current question */}
+            {reviewIndex === null && currentQuiz && !quizLoading && (
               <>
-                <p className="lp-quiz-question">{currentQuiz.question}</p>
+                <p className="lp-quiz-question">
+                  <span className="lp-quiz-qnum">Q{quizHistory.length + 1}.</span> {currentQuiz.question}
+                </p>
 
                 <div className="lp-quiz-options">
                   {currentQuiz.options.map((option, index) => {
@@ -1675,15 +1830,30 @@ function App() {
             )}
 
             <div className="lp-quiz-actions">
-              {mode === 'quiz_open' && (
-                <button type="button" onClick={submitQuiz} disabled={selectedOption === null}>
-                  Submit Answer
-                </button>
-              )}
-              {mode === 'quiz_feedback' && (
-                <button type="button" onClick={nextQuiz}>
-                  Ask one more
-                </button>
+              {reviewIndex !== null ? (
+                currentQuiz ? (
+                  <button type="button" className="lp-secondary" onClick={() => setReviewIndex(null)}>
+                    ← Back to current
+                  </button>
+                ) : null
+              ) : (
+                <>
+                  {mode === 'quiz_open' && (
+                    <button type="button" onClick={submitQuiz} disabled={selectedOption === null}>
+                      Submit Answer
+                    </button>
+                  )}
+                  {mode === 'quiz_feedback' && (
+                    <>
+                      <button type="button" className="lp-explain-btn" onClick={explainInDetail}>
+                        Explain in detail
+                      </button>
+                      <button type="button" onClick={nextQuiz}>
+                        Ask one more
+                      </button>
+                    </>
+                  )}
+                </>
               )}
               <button type="button" className="lp-secondary" onClick={closeQuiz}>
                 Back to video
