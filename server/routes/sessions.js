@@ -5,15 +5,15 @@ const router = Router()
 
 // Create a new session
 router.post('/', (req, res) => {
-  const { videoId, videoTitle, paradigm } = req.body
+  const { videoId, videoTitle, paradigm, participantId } = req.body
   if (!videoId || !videoTitle) {
     return res.status(400).json({ error: 'videoId and videoTitle are required' })
   }
   const result = db.prepare(
-    'INSERT INTO sessions (video_id, video_title, paradigm) VALUES (?, ?, ?)'
-  ).run(videoId, videoTitle, paradigm ?? null)
+    'INSERT INTO sessions (video_id, video_title, paradigm, participant_id) VALUES (?, ?, ?, ?)'
+  ).run(videoId, videoTitle, paradigm ?? null, participantId ?? null)
 
-  res.json({ id: result.lastInsertRowid, videoId, videoTitle, paradigm: paradigm ?? null })
+  res.json({ id: result.lastInsertRowid, videoId, videoTitle, paradigm: paradigm ?? null, participantId: participantId ?? null })
 })
 
 // List recent sessions (last 20)

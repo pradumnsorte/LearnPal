@@ -26,3 +26,14 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# SQLite database (study data — never commit)
+server/learnpal.db
+server/learnpal.db-shm
+server/learnpal.db-wal
+
+# Claude Code settings
+.claude/
+
+# Large video assets
+public/neural-networks.mp4

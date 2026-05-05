@@ -35,6 +35,14 @@
   --lh-tight:  1.2;
   --lh-snug:   1.4;
   --lh-normal: 1.5;
+
+  /* Spacing scale — 4px base grid */
+  --sp-1:  4px;   /* badge / chip inner padding    */
+  --sp-2:  8px;   /* tight rows, icon padding      */
+  --sp-3:  12px;  /* card sections, moderate gap   */
+  --sp-4:  16px;  /* standard column / card inner  */
+  --sp-5:  20px;  /* card outer, modal padding     */
+  --sp-6:  24px;  /* panel headers, large sections */
 }
 
 /* ── Reset ──────────────────────────────────────────────────────────────────── */

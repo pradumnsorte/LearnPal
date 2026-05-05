@@ -138,6 +138,25 @@ const callQuizProvider = async (provider, prompt) => {
 
 // ── Generate a question ───────────────────────────────────────────────────────
 
+// Randomise option order so the correct answer isn't always at the same
+// position. LLMs often anchor to position 0 from the prompt's JSON example,
+// which makes elimination trivial. Fisher-Yates shuffle.
+const shuffleOptions = (question) => {
+  if (!Array.isArray(question?.options) || typeof question?.correctIndex !== 'number') {
+    return question
+  }
+  const indices = question.options.map((_, i) => i)
+  for (let i = indices.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1))
+    ;[indices[i], indices[j]] = [indices[j], indices[i]]
+  }
+  return {
+    ...question,
+    options: indices.map((i) => question.options[i]),
+    correctIndex: indices.indexOf(question.correctIndex),
+  }
+}
+
 router.post('/generate', async (req, res) => {
   const { provider, prompt } = req.body
 
@@ -147,7 +166,7 @@ router.post('/generate', async (req, res) => {
 
   try {
     const question = await callQuizProvider(provider, prompt)
-    res.json(question)
+    res.json(shuffleOptions(question))
   } catch (err) {
     res.status(500).json({ error: err.message })
   }
