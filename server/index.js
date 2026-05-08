@@ -1,12 +1,17 @@
 import 'dotenv/config'
 import express from 'express'
 import cors from 'cors'
+import { join, dirname } from 'node:path'
+import { fileURLToPath } from 'node:url'
+import { existsSync } from 'node:fs'
 import sessionsRouter from './routes/sessions.js'
 import chatRouter from './routes/chat.js'
 import quizRouter from './routes/quiz.js'
 import snapsRouter from './routes/snaps.js'
 import eventsRouter from './routes/events.js'
 import exportRouter from './routes/export.js'
+
+const __dirname = dirname(fileURLToPath(import.meta.url))
 
 const app = express()
 const PORT = process.env.PORT || 3001
@@ -44,6 +49,13 @@ const checkEnv = () => {
   }
 }
 checkEnv()
+
+// Serve the React build in production
+const distPath = join(__dirname, '../dist')
+if (existsSync(distPath)) {
+  app.use(express.static(distPath))
+  app.get('*', (_req, res) => res.sendFile(join(distPath, 'index.html')))
+}
 
 app.listen(PORT, () => {
   console.log(`LearnPal server running on http://localhost:${PORT}`)
