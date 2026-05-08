@@ -7,6 +7,7 @@ import palCharacter from './assets/pal-character.svg'
 import chatgptLogo from './assets/Chat GPT logo.png'
 
 const DEMO_MODE = import.meta.env.VITE_DEMO_MODE === 'true'
+  || (typeof window !== 'undefined' && window.location.hostname.endsWith('.onrender.com'))
 const VIDEO_ID = 'intermittent-neural-networks'
 const VIDEO_SRC = import.meta.env.VITE_VIDEO_URL || '/neural-networks.mp4'
 
