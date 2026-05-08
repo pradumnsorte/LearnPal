@@ -49,7 +49,7 @@ checkEnv()
 // Serve the React build in production
 const distPath = join(process.cwd(), 'dist')
 app.use(express.static(distPath))
-app.get('*', (_req, res) => res.sendFile(join(distPath, 'index.html')))
+app.use((_req, res) => res.sendFile(join(distPath, 'index.html')))
 
 app.listen(PORT, () => {
   console.log(`LearnPal server running on http://localhost:${PORT}`)
