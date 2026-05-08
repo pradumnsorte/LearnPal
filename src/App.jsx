@@ -6,8 +6,9 @@ import brandIcon from './assets/brand-icon.svg'
 import palCharacter from './assets/pal-character.svg'
 import chatgptLogo from './assets/Chat GPT logo.png'
 
+const DEMO_MODE = import.meta.env.VITE_DEMO_MODE === 'true'
 const VIDEO_ID = 'intermittent-neural-networks'
-const VIDEO_SRC = '/neural-networks.mp4'
+const VIDEO_SRC = import.meta.env.VITE_VIDEO_URL || '/neural-networks.mp4'
 
 // ─── AI providers ────────────────────────────────────────────────────────────
 
@@ -326,7 +327,7 @@ function App() {
   const [participantId, setParticipantId] = useState('')
   const [pidInput, setPidInput] = useState('')
   const [pidConfirmed, setPidConfirmed] = useState(false)
-  const [modalDismissed, setModalDismissed] = useState(false)  // skip = dismiss modal without creating a session
+  const [modalDismissed, setModalDismissed] = useState(DEMO_MODE)  // skip = dismiss modal without creating a session
 
   // Sticky player state — no stageHeight state; CSS does the animation
   const [isCompact, setIsCompact] = useState(false)
@@ -1673,7 +1674,7 @@ function App() {
       </main>
 
       {/* Researcher panel — hidden in bottom-left corner */}
-      <div className="lp-researcher-panel">
+      {!DEMO_MODE && <div className="lp-researcher-panel">
         <input
           type="text"
           className="lp-researcher-input"
@@ -1690,7 +1691,7 @@ function App() {
         <a className="lp-researcher-export" href="/api/export/all" target="_blank" rel="noreferrer">
           Export Excel
         </a>
-      </div>
+      </div>}
 
       {/* Quiz modal */}
       {isQuizOpen && (

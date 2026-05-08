@@ -11,7 +11,10 @@ import exportRouter from './routes/export.js'
 const app = express()
 const PORT = process.env.PORT || 3001
 
-app.use(cors({ origin: 'http://localhost:5173' }))
+const ALLOWED_ORIGINS = process.env.ALLOWED_ORIGIN
+  ? [process.env.ALLOWED_ORIGIN, 'http://localhost:5173']
+  : ['http://localhost:5173']
+app.use(cors({ origin: ALLOWED_ORIGINS }))
 app.use(express.json({ limit: '10mb' }))  // 10mb for base64 snap images
 
 app.use('/api/sessions', sessionsRouter)
